@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SummarizePro Home</title>
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+    <div id="sidebar">
+        <div id="logo">
+            <img src="/images/logo.png" alt="SummarizePro Logo">
+            <h2>SummarizePro</h2> 
+        </div>
+        <nav>
+            <ul>
+                <li><a href="#" class="link">Home</a></li>
+                <li><a href="#" class="link">UserPage</a></li>
+                <li><a href="#" class="link">ContactUs</a></li>
+            </ul>
+        </nav>
+        <div id="logout" class="logout-bottom"> 
+            <button onclick="location.href='/logout';">Logout</button>
+        </div>
+    </div>
+    
+    <div id="main-content">
+        <div class="content-header">
+            <button>New folder</button>
+            <button>+ Create file</button>
+            <button>Delete selected</button>
+            <input type="search" placeholder="Search here">
+        </div>
+        <div class="file-explorer">
+            <div class="folder">Physics</div>
+            <div class="folder">Chemistry</div>
+            <div class="folder">Maths</div>
+            <div class="file">Getting started</div>
+        </div>
+
+        <!-- Container for PDF preview -->
+        <div id="pdf-preview-container" class="container">
+
+        </div>
+
+        <!-- Container for the quiz -->
+        <div id="quiz-container" class="container">
+
+        </div>
+
+        <!-- Container for quiz feedback -->
+        <div id="quiz-feedback-container" class="container">
+
+        </div>
+
+        <!-- Container for closing and resetting live chat -->
+        <div id="chat-controls-container" class="container">
+
+        </div>
+    </div>
+
+    
+    <script>
+        document.addEventListener("DOMContentLoaded", () => {
+            const explorerItems = document.querySelectorAll(".folder, .file");
+            const containers = document.querySelectorAll(".container");
+        
+            explorerItems.forEach(item => {
+                item.addEventListener("click", () => {
+                    // Toggle visibility of the containers
+                    containers.forEach(container => {
+                        container.style.display = container.style.display === 'none' ? 'flex' : 'none';
+                    });
+                });
+            });
+        });
+        </script>    
+</body>
+</html>
