@@ -1,46 +1,53 @@
-const { log } = require('console');
 const express = require('express');
-const { SourceTextModule } = require('vm');
+const path = require('path');
+const { spawn } = require("child_process");
 const app = express();
 const port = 8000;
 
+// Set the 'views' directory and EJS as the templating engine
+app.set('views', path.join(__dirname, 'views'));
+app.set('view engine', 'ejs');
 
+// Middleware to serve static files from the 'public' directory
+app.use(express.static(path.join(__dirname, 'public')));
+
+// Route for the homepage
 app.get('/', (req, res) => {
-    res.send('Hello World!')
-});
-  
-app.listen(port, () => {
-    console.log(`SummarizePro is live on port: ${port}`)
+    res.render('home'); // This will render 'home.ejs' from the 'views' directory
 });
 
-app.get('/python', invokePythonMorrocanTranslator);
+// Route for logging out
+app.get('/logout', (req, res) => {
+    // Here you should handle your logout logic (clear cookies, sessions, etc.)
+    console.log("User logged out.");
+    // Redirect to the login page or homepage after logout
+    res.redirect('/');
+});
 
-// Step 2: 
-// Create a callback function that handles requests to the '/Morrocan_NLP' endpoint
-function invokePythonMorrocanTranslator(req, res) {
+// Route for the Python script interaction (if needed)
+app.get('/python', invokePythonMoroccanTranslator);
 
-    // Importing Node's 'child_process' module to spin up a child process. 
-    // There are other ways to create a child process but we'll use the 
-    // simple spawn function here.
-    var spawn = require("child_process").spawn;
-    console.log("spawning process")
+// Callback function that handles requests to the '/Moroccan_NLP' endpoint
+function invokePythonMoroccanTranslator(req, res) {
+    console.log("Spawning Python process");
+    var process = spawn('python', ["./test.py", req.query.text]); // Assuming you're passing text query parameter
 
-    // The spawned python process which takes 2 arguments, the name of the 
-    // python script to invoke and the query parameter text = "mytexttotranslate"
-    var process = spawn('python', 
-        [
-            "./test.py",
-            "dnliisakdbsaj;d"
-        ]
-    );
-
-    // Step 3:
-    // Listen for data output from stdout, in this case, from "morrocan_nlp.py"
-    process.stdout.on('data', function(data) {
-
-        // Sends the output from "morrocan_nlp.py" back to the user
+    process.stdout.on('data', (data) => {
         res.send(data.toString());
-
+    });
+    
+    process.stderr.on('data', (data) => {
+        console.error(`stderr: ${data}`);
     });
 
+    process.on('close', (code) => {
+        if (code !== 0) {
+            console.error(`Process exited with code: ${code}`);
+        }
+    });
 };
+
+// Starting the server
+app.listen(port, () => {
+    console.log(`SummarizePro is live on port: ${port}`);
+});
