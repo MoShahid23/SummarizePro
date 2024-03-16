@@ -1,19 +1,19 @@
 from __future__ import annotations
 import sys
 from tenacity import retry, stop_after_attempt, wait_random_exponential
-from google.api_core.exceptions import ResourceExhausted
+from google.api_core.exceptions import InternalServerError, RetryError
 from google.api_core.client_options import ClientOptions
-from google.api_core.exceptions import AlreadyExists
-from google.cloud import documentai
+from google.cloud.documentai_v1 import Document
+from google.cloud import documentai, storage
 import numpy as np
 import glob
 import os
-from typing import Dict, List
+from typing import Dict, List, Optional
 import pandas as pd
 import re
 import textwrap
-from typing import List
-from vertexai.language_models import TextEmbeddingModel, TextGenerationModel
+from vertexai.language_models import TextEmbeddingModel
+
 
 file = sys.argv[1]
 
@@ -22,7 +22,32 @@ location = "us"
 processor_id = "a7d60edf0e35ae07"
 client_options = ClientOptions(api_endpoint=f"{location}-documentai.googleapis.com")
 
-batch_requests = []
+# Set the GCS URI where you want to store the processed documents
+gcs_output_uri = f"gs://sprobucket/output_{file}/"  # Must end with a trailing slash `/`
+
+# Define the path to your large PDF file on GCS
+gcs_input_uri = f"gs://sprobucket/{file}.pdf"  # Format: gs://bucket/directory/file.pdf
+
+# Optional parameters
+processor_version_id = None
+input_mime_type = "application/pdf"
+field_mask = "text"
+
+# Set timeout for the operation
+timeout = 600  # Increase timeout if needed
+
+def upload_pdf_to_gcs(local_file_path: str, gcs_file_path: str):
+    # Initialize the GCS client
+    client = storage.Client()
+
+    # Get the bucket
+    bucket = client.bucket("sprobucket")
+    # Create blob object with the destination path in GCS
+    blob = bucket.blob(gcs_file_path)
+    # Upload the file to GCS
+    blob.upload_from_filename(local_file_path)
+
+    print(f"File {local_file_path} uploaded to gs://sprobucket/{gcs_file_path}")
 
 def process_document(file_path: str) -> documentai.Document:
     client = documentai.DocumentProcessorServiceClient(client_options=client_options)
@@ -56,83 +81,131 @@ def layout_to_text(layout: documentai.Document.Page.Layout, text: str) -> str:
         for segment in layout.text_anchor.text_segments
     )
 
-# If you already have a Document AI Processor in your project, assign the full processor resource name here.
-chunk_size = 5000
+def batch_process_documents(
+    project_id: str,
+    location: str,
+    processor_id: str,
+    gcs_output_uri: str,
+    processor_version_id: Optional[str] = None,
+    gcs_input_uri: Optional[str] = None,
+    input_mime_type: Optional[str] = None,
+    field_mask: Optional[str] = None,
+    timeout: int = 400,
+) -> None:
+    opts = ClientOptions(api_endpoint=f"{location}-documentai.googleapis.com")
+    client = documentai.DocumentProcessorServiceClient(client_options=opts)
+
+    # Define input documents
+    gcs_document = documentai.GcsDocument(gcs_uri=gcs_input_uri, mime_type=input_mime_type)
+    gcs_documents = documentai.GcsDocuments(documents=[gcs_document])
+    input_config = documentai.BatchDocumentsInputConfig(gcs_documents=gcs_documents)
+
+    # Define output configuration
+    gcs_output_config = documentai.DocumentOutputConfig.GcsOutputConfig(
+        gcs_uri=gcs_output_uri, field_mask=field_mask
+    )
+    output_config = documentai.DocumentOutputConfig(gcs_output_config=gcs_output_config)
+
+    if processor_version_id:
+        name = client.processor_version_path(
+            project_id, location, processor_id, processor_version_id
+        )
+    else:
+        name = client.processor_path(project_id, location, processor_id)
+
+    request = documentai.BatchProcessRequest(
+        name=name,
+        input_documents=input_config,
+        document_output_config=output_config,
+    )
+
+    try:
+        print("Initiating batch processing...")
+        operation = client.batch_process_documents(request)
+        operation.result(timeout=timeout)
+        print("Batch processing completed.")
+    except (RetryError, InternalServerError) as e:
+        print(f"Error during batch processing: {e}")
+
+    aggregated_text = []
+
+    # Retrieve output documents
+    storage_client = storage.Client()
+    for process in operation.metadata.individual_process_statuses:
+        output_bucket, output_prefix = process.output_gcs_destination.split("gs://")[1].split("/", 1)
+        output_blobs = storage_client.list_blobs(output_bucket, prefix=output_prefix)
+        for blob in output_blobs:
+            if blob.content_type == "application/json":
+                # Download JSON file and process each chunk
+                json_bytes = blob.download_as_bytes()
+                document = Document.from_json(json_bytes, ignore_unknown_fields=True)
+                aggregated_text.append(document.text)
+
+    return aggregated_text
+
+#call the function to upload the PDF file to GCS
+upload_pdf_to_gcs(f'temp/{file}.pdf', f"{file}.pdf")
+
+#process PDF
+document_chunks = text=batch_process_documents(
+    project_id,
+    location,
+    processor_id,
+    gcs_output_uri,
+    processor_version_id,
+    gcs_input_uri,
+    input_mime_type,
+    field_mask,
+    timeout,
+)
+
 extracted_data: List[Dict] = []
 
-# Select file from temp/
-for path in glob.glob(f"temp/{file}.pdf"):
-    # Extract the file name and type from the path.
-    file_name, file_type = os.path.splitext(path)
-
-    print(f"Processing {file_name}")
-
-    # Process the document.
-    document = process_document(file_path=path)
-
-    if not document:
-        print("Processing did not complete successfully.")
-        continue
-
-    # Split the text into chunks based on paragraphs.
-    document_chunks = [
-        layout_to_text(paragraph.layout, document.text)
-        for page in document.pages
-        for paragraph in page.paragraphs
-    ]
-
-    # Can also split into chunks by page or blocks.
-    # document_chunks = [page.text for page in wrapped_document.pages]
-    # document_chunks = [block.text for page in wrapped_document.pages for block in page.blocks]
-
-    # Loop through each chunk and create a dictionary with metadata and content.
-    for chunk_number, chunk_content in enumerate(document_chunks, start=1):
-        # Append the chunk information to the extracted_data list.
-        extracted_data.append(
-            {
-                "file_name": file_name,
-                "file_type": file_type,
-                "chunk_number": chunk_number,
-                "content": chunk_content,
-            }
-        )
-
-    print(extracted_data)
-
-    # Convert extracted_data to a sorted Pandas DataFrame
-    pdf_data = (
-        pd.DataFrame.from_dict(extracted_data)
-        .sort_values(by=["file_name"])
-        .reset_index(drop=True)
+# Loop through each chunk and create a dictionary with metadata and content.
+for chunk_number, chunk_content in enumerate(document_chunks, start=1):
+    # Append the chunk information to the extracted_data list.
+    extracted_data.append(
+        {
+            "file_name": "test.pdf",
+            "chunk_number": chunk_number,
+            "content": chunk_content,
+        }
     )
 
-    pdf_data.head()
+print(extracted_data)
+pdf_data = (
+    pd.DataFrame.from_dict(extracted_data)
+    .sort_values(by=["file_name"])
+    .reset_index(drop=True)
+)
 
-    # Define the maximum number of characters in each chunk.
-    chunk_size = 5000
+pdf_data.head()
 
-    pdf_data_sample = pdf_data.copy()
+# Define the maximum number of characters in each chunk.
+chunk_size = 5000
 
-    # Remove all non-alphabets and numbers from the data to clean it up.
-    # This is harsh cleaning. You can define your custom logic for cleansing here.
-    pdf_data_sample["content"] = pdf_data_sample["content"].apply(
-        lambda x: re.sub("[^A-Za-z0-9]+", " ", x)
-    )
+pdf_data_sample = pdf_data.copy()
 
-    # Apply chunk splitting logic to each row of content in the DataFrame.
-    pdf_data_sample["chunks"] = pdf_data_sample["content"].apply(
-        lambda row: textwrap.wrap(row, width=chunk_size)
-    )
+# Remove all non-alphabets and numbers from the data to clean it up.
+# This is harsh cleaning. You can define your custom logic for cleansing here.
+pdf_data_sample["content"] = pdf_data_sample["content"].apply(
+    lambda x: re.sub("[^A-Za-z0-9]+", " ", x)
+)
 
-    # Now, each row in 'chunks' contains list of all chunks and hence we need to explode them into individual rows.
-    pdf_data_sample = pdf_data_sample.explode("chunks")
+# Apply chunk splitting logic to each row of content in the DataFrame.
+pdf_data_sample["chunks"] = pdf_data_sample["content"].apply(
+    lambda row: textwrap.wrap(row, width=chunk_size)
+)
 
-    # Sort and reset index
-    pdf_data_sample = pdf_data_sample.sort_values(by=["file_name"]).reset_index(drop=True)
-    pdf_data_sample.head()
+# Now, each row in 'chunks' contains list of all chunks and hence we need to explode them into individual rows.
+pdf_data_sample = pdf_data_sample.explode("chunks")
 
-    print("The original dataframe has :", pdf_data.shape[0], " rows without chunking")
-    print("The chunked dataframe has :", pdf_data_sample.shape[0], " rows with chunking")
+# Sort and reset index
+pdf_data_sample = pdf_data_sample.sort_values(by=["file_name"]).reset_index(drop=True)
+pdf_data_sample.head()
+
+print("The original dataframe has :", pdf_data.shape[0], " rows without chunking")
+print("The chunked dataframe has :", pdf_data_sample.shape[0], " rows with chunking")
 
 embedding_model = TextEmbeddingModel.from_pretrained("textembedding-gecko@001")
 
