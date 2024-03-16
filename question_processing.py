@@ -1,12 +1,60 @@
-from sentence_transformers import SentenceTransformer
+from __future__ import annotations
+import sys
+from tenacity import retry, stop_after_attempt, wait_random_exponential
+import numpy as np
+import pandas as pd
+from typing import Tuple
+from vertexai.language_models import TextEmbeddingModel, TextGenerationModel
 
-def embed_text(text):
-    # Load a pre-trained sentence transformer model
-    model = SentenceTransformer('all-mpnet-base-v2')
-    # Encode the text into numerical representations
-    embedding = model.encode([text])
-    return embedding
+file = sys.argv[1]
+question = sys.argv[2]
 
-# Example usage
-# embedded_text = embed_text("bruh moment fr fr omegalul")
-# print(embedded_text)
+pdf_data_sample = pd.read_pickle(f'embeddings/{file}.pkl')
+
+generation_model = TextGenerationModel.from_pretrained("text-bison@001")
+embedding_model = TextEmbeddingModel.from_pretrained("textembedding-gecko@001")
+
+# This decorator is used to handle exceptions and apply exponential backoff in case of ResourceExhausted errors.
+# It means the function will be retried with increasing time intervals in case of this specific exception.
+@retry(wait=wait_random_exponential(min=1, max=60), stop=stop_after_attempt(5))
+def text_generation_model_with_backoff(**kwargs):
+    return generation_model.predict(**kwargs).text
+
+@retry(wait=wait_random_exponential(min=10, max=120), stop=stop_after_attempt(5))
+def embedding_model_with_backoff(text=[]):
+    embeddings = embedding_model.get_embeddings(text)
+    return [each.values for each in embeddings][0]
+
+def get_context_from_question(
+    question: str, vector_store: pd.DataFrame, sort_index_value: int = 2
+) -> Tuple[str, pd.DataFrame]:
+    query_vector = np.array(embedding_model_with_backoff([question]))
+    vector_store["dot_product"] = vector_store["embedding"].apply(
+        lambda row: np.dot(row, query_vector)
+    )
+    top_matched = vector_store.sort_values(by="dot_product", ascending=False)[
+        :sort_index_value
+    ].index
+    top_matched_df = vector_store.loc[top_matched, ["file_name", "chunks"]]
+    context = "\n".join(top_matched_df["chunks"].values)
+    return context, top_matched_df
+
+# get the custom relevant chunks from all the chunks in vector store.
+context, top_matched_df = get_context_from_question(
+    question,
+    vector_store=pdf_data_sample,
+    sort_index_value=2,  # Top N results to pick from embedding vector search
+)
+# top 5 data that has been picked by model based on user question. This becomes the context.
+top_matched_df
+
+# Prompt for Q&A which takes the custom context found in last step.
+prompt = f"""Be friendly and answer like a teacher.
+             Answer each question to the best of your ability.\n\n
+            Context: \n {context}?\n
+            Question: \n {question} \n
+            Answer:
+          """
+
+# Call the PaLM API on the prompt.
+print("PaLM Predicted:", text_generation_model_with_backoff(prompt=prompt), "\n\n")

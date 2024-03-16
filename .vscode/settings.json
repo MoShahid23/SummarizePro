@@ -6,7 +6,9 @@
         "gcloud",
         "googleapis",
         "gsutil",
+        "sprobucket",
         "summarizepro",
+        "vertexai",
         "YOUR"
     ]
 }
