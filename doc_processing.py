@@ -6,8 +6,6 @@ from google.api_core.client_options import ClientOptions
 from google.cloud.documentai_v1 import Document
 from google.cloud import documentai, storage
 import numpy as np
-import glob
-import os
 from typing import Dict, List, Optional
 import pandas as pd
 import re
@@ -143,6 +141,15 @@ def batch_process_documents(
 
     return aggregated_text
 
+def delete_files_in_bucket(bucket_name: str, prefix: str):
+    """Deletes files in a Google Cloud Storage bucket with the given prefix."""
+    storage_client = storage.Client()
+    bucket = storage_client.get_bucket(bucket_name)
+    blobs = bucket.list_blobs(prefix=prefix)
+    for blob in blobs:
+        blob.delete()
+        print(f"Deleted {blob.name}.")
+
 #call the function to upload the PDF file to GCS
 upload_pdf_to_gcs(f'temp/{file}.pdf', f"{file}.pdf")
 
@@ -158,6 +165,10 @@ document_chunks = text=batch_process_documents(
     field_mask,
     timeout,
 )
+
+# Call the function to delete the files in the bucket
+delete_files_in_bucket("sprobucket", f"output_{file}/")
+delete_files_in_bucket("sprobucket", f"{file}")
 
 extracted_data: List[Dict] = []
 

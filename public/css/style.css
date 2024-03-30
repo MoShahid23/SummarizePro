@@ -151,6 +151,10 @@ nav ul li a:hover {
     padding: 2rem;
 }
 
+.login-form{
+    width: 50%;
+}
+
 .logo {
     max-width: 120px;
     margin-bottom: 1rem;

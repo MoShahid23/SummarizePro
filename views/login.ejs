@@ -12,17 +12,23 @@
         <div class="login-branding">
             <img src="/images/logo.png" alt="SummarizePro Logo" class="logo">
             <h1>SummarizePro</h1>
-            <p>The best free summarisation tool for students</p>
-            
+            <p>A platform designed to help you study better</p>
         </div>
 
         <!-- Login Form on the Right -->
         <div class="login-form-container">
             <form class="login-form" action="/login" method="post">
                 <h2>Login</h2>
+                <% if (typeof message !== 'undefined' && message && message.length) { %>
+                    <p style="color: red; text-align: center;"><%= message %></p>
+                <% } %>
                 <div class="form-group">
                     <label for="email">Email:</label>
-                    <input type="email" id="email" name="email" required>
+                    <input type="email" id="email" name="email" required
+                        <% if (typeof email !== 'undefined' && email && email.length) { %>
+                            value = "<%= email %>""
+                        <% } %>
+                    >
                 </div>
                 <div class="form-group">
                     <label for="password">Password:</label>

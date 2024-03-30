@@ -1,69 +1,61 @@
 const express = require('express');
+const session = require('express-session');
+var ejs = require('ejs')
 const path = require('path');
-const { spawn } = require("child_process");
+const mysql = require('mysql');
+const crypto = require('crypto');
+
+// Generating secret key
+const secretKey = crypto.randomBytes(32).toString('hex');
+
 const app = express();
-const port = 8000;
+const port = 80;
+
+app.set('baseUrl', '');
+
+app.use(session({
+    secret: secretKey,
+    resave: true,
+    saveUninitialized: true,
+    cookie: {
+        maxAge: 3 * 24 * 60 * 60 * 1000, // 3 days in milliseconds
+      },
+}));
 
 // Middleware to parse the request body for form submissions
 app.use(express.urlencoded({ extended: true }));
 
-// Set the 'views' directory and EJS as the templating engine
-app.set('views', path.join(__dirname, 'views'));
-app.set('view engine', 'ejs');
+// MySQL connection configuration
+const dbConnection = mysql.createConnection({
+    host: 'localhost',
+    user: 'appuser',
+    password: 'app2027',
+    database: 'spro', // Database name
+});
+// Connect to MySQL
+dbConnection.connect((err) => {
+    if (err) {
+        console.error('Error connecting to MySQL: ' + err.stack);
+        return;
+    }
+    console.log('Connected to MySQL as id ' + dbConnection.threadId);
+});
+global.db = dbConnection;
+
 
 // Middleware to serve static files from the 'public' directory
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Route for the homepage
-app.get('/', (req, res) => {
-    res.render('home'); 
-});
+// Set the 'views' directory and EJS as the templating engine
+app.set('view engine', 'ejs');
+app.set('views', path.join(__dirname, 'views'));
 
-// Route for the login page
-app.get('/login', (req, res) => {
-    res.render('login'); 
-});
+// Tells Express how we should process html files
+// We want to use EJS's rendering engine
+app.engine('html', ejs.renderFile);
 
-// Route to handle login form submission
-app.post('/login', (req, res) => {
-    console.log('Email:', req.body.email);
-    console.log('Password:', req.body.password);
-    // Redirect to the home page after login attempt
-    res.redirect('/');
-});
-
-// Route for logging out
-app.get('/logout', (req, res) => {
-    // Here you should handle your logout logic (clear cookies, sessions, etc.)
-    console.log("User logged out.");
-    // Redirect to the login page after logout
-    res.redirect('/login');
-});
-
-// Route for the Python script interaction (if needed)
-app.get('/python', invokePythonMoroccanTranslator);
-
-// Callback function that handles requests to the '/python' endpoint
-function invokePythonMoroccanTranslator(req, res) {
-    console.log("Spawning Python process");
-    var process = spawn('python', ["./test.py", req.query.text]); // Assuming you're passing text query parameter
-
-    process.stdout.on('data', (data) => {
-        res.send(data.toString());
-    });
-    
-    process.stderr.on('data', (data) => {
-        console.error(`stderr: ${data}`);
-    });
-
-    process.on('close', (code) => {
-        if (code !== 0) {
-            console.error(`Process exited with code: ${code}`);
-        }
-    });
-};
+var data = {appName: "SummarizePro"};
+require("./routes/main")(app, data);
 
 // Starting the server
-app.listen(port, () => {
-    console.log(`SummarizePro is live on port: ${port}`);
-});
+app.listen(port, () => console.log(`SummarizePro is live on port ${port}!`))

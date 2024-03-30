@@ -24,16 +24,22 @@
                 <button onclick="location.href='/logout';">Logout</button>
             </div>
         </div>
-        
+
         <div id="main-content">
             <!-- Content header with buttons and search -->
+            <script>
+                function uploadFile() {
+                    
+                    document.getElementById('fileInput').click();
+                }
+            </script>
             <div class="content-header">
                 <button>New folder</button>
-                <button>+ Create file</button>
+                <button onclick="uploadFile()">+ Create file</button>
+                <input type="file" id="fileInput" style="display: none;">
                 <button>Delete selected</button>
                 <input type="search" placeholder="Search here">
             </div>
-
             <!-- File explorer area -->
             <div class="file-explorer">
                 <div class="folder">Physics</div>
