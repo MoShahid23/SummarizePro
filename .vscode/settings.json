@@ -6,6 +6,7 @@
         "gcloud",
         "googleapis",
         "gsutil",
+        "newfolder",
         "sprobucket",
         "summarizepro",
         "sumpro",

@@ -1,6 +1,6 @@
 const bcrypt = require('bcrypt');
 const spawn = require("child_process");
-const { log } = require('console');
+const { time } = require('console');
 const multer = require('multer'); // Import multer
 
 
@@ -18,21 +18,74 @@ module.exports = function(app, renderData) {
         }
     };
 
-    // Configure multer for file uploads
+    // Set storage engine
     const storage = multer.diskStorage({
         destination: function (req, file, cb) {
-        cb(null, 'temp/'); // Specify the directory where files should be uploaded
+        cb(null, 'temp/'); // Destination directory for uploaded files
         },
         filename: function (req, file, cb) {
-        cb(null, file.originalname); // Use the original file name
+        cb(null, req.session.userEmail+"&&d&&"+Date.now()+"&&d&&"+req.body.title+".pdf");
         }
     });
-    const upload = multer({ storage: storage });
 
+    // Initialize multer upload
+    const upload = multer({
+        storage: storage,
+    });
 
-    // Route for the homepage
+    app.post('/upload', isAuthenticated, upload.single('file'), (req, res) => {
+        console.log(req.file); // Log the uploaded file object
+        res.redirect('/home/');
+    });
+
     app.get('/', isAuthenticated, (req, res) => {
-        res.render(req.app.get('baseUrl')+'home');
+        res.redirect("/home");
+    });
+
+    //home  + location dir requested
+    app.get('/home/*', isAuthenticated, (req, res) => {
+
+        let urlPath;
+        let pathSegments;
+        try{
+            urlPath = decodeURIComponent(req.url).split('/home/')[1]; // Decode the URL and get the part after '/home'
+            pathSegments = urlPath.split('/'); // Split the URL path into segments
+        }
+        catch{
+            urlPath = null;
+            pathSegments = null;
+        }
+
+        req.session.fs = {
+            "Getting Started":{
+                "penis":{},
+                "eggplant":{}
+            },
+            "bruh":{},
+            "mathematics":{}
+        }
+        let currentDirectory = req.session.fs; // Start from the root directory
+
+        console.log(pathSegments)
+
+        // Traverse the JSON object based on the URL path segments
+        for (const segment of pathSegments) {
+            if (segment !== '') {
+                if (currentDirectory.hasOwnProperty(segment) && typeof currentDirectory[segment] === 'object') {
+                    currentDirectory = currentDirectory[segment]; // Move to the next directory
+                } else {
+                    // Handle the case where the directory doesn't exist
+                    res.status(404).send('Directory not found');
+                    return;
+                }
+            }
+        }
+
+        // Render the home template with the current directory's content
+        res.render(req.app.get('baseUrl') + 'home', { fs: currentDirectory });
+    });
+    app.get('/home', isAuthenticated, (req, res) => {
+        res.redirect("/home/")
     });
 
     // Route for the login page
@@ -56,7 +109,7 @@ module.exports = function(app, renderData) {
         email.replace(" ", "");
 
         // SQL query to retrieve the user's hashed password and salt from the database
-        const selectUserQuery = 'SELECT password_hash, salt FROM users WHERE email = ?';
+        let selectUserQuery = 'SELECT password_hash, salt FROM users WHERE email = ?';
 
         // Execute the SQL query to retrieve the user's hashed password and salt
         global.db.query(selectUserQuery, [email], async (error, results, fields) => {
@@ -83,7 +136,11 @@ module.exports = function(app, renderData) {
                 if (passwordMatch) {
                     console.log('Login successful');
                     req.session.userEmail = email;
-                    res.redirect(req.app.get('baseUrl')+'/'); // Redirect to home page after successful login
+                    let selectUserQuery = 'SELECT fs FROM users WHERE email = ?';
+                    global.db.query(selectUserQuery, [email], async (error, results) => {
+                        req.session.fs = JSON.parse(results[0].fs);
+                        res.redirect(req.app.get('baseUrl')+'/'); // Redirect to home page after successful login
+                    });
                 } else {
                     console.log('Invalid password');
                     res.render(req.app.get('baseUrl')+'login', { message: 'Invalid email or password' , email: email});
@@ -140,10 +197,12 @@ module.exports = function(app, renderData) {
                 const passwordHash = await bcrypt.hash(password, salt);
 
                 // SQL query to insert user details into the users table
-                const insertUserQuery = 'INSERT INTO users (email, password_hash, salt) VALUES (?, ?, ?)';
+                const insertUserQuery = 'INSERT INTO users (email, password_hash, salt, fs) VALUES (?, ?, ?, ?)';
 
                 // Execute the SQL query
-                global.db.query(insertUserQuery, [email, passwordHash, salt], (error, results, fields) => {
+                req.session.fs = {"Getting Started":{}};
+
+                global.db.query(insertUserQuery, [email, passwordHash, salt, JSON.stringify(req.session.fs)], (error, results, fields) => {
                     if (error) {
                         console.error('Error inserting user:', error);
                         res.status(500).send('Error registering user');
@@ -151,6 +210,7 @@ module.exports = function(app, renderData) {
                     }
                     console.log('User registered successfully');
                     req.session.userEmail = email;
+
                     res.redirect(req.app.get('baseUrl')+'/'); // Redirect to home page after successful registration
                 });
             });

@@ -15,5 +15,6 @@ CREATE TABLE IF NOT EXISTS users (
     google_id VARCHAR(255),      -- Store Google ID (nullable if using custom login)
     google_email VARCHAR(255),   -- Store Google email (nullable if using custom login)
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    fs TEXT
 );

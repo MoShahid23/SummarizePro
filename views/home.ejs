@@ -7,12 +7,12 @@
     <link rel="stylesheet" href="/css/style.css">
 </head>
 <body>
+    <%= console.log(fs) %>
     <div id="app">
         <div id="sidebar">
-            <div id="logo">
+            <a href="/home/" id="logo">
                 <img src="/images/logo.png" alt="SummarizePro Logo">
-                <h2>SummarizePro</h2> 
-            </div>
+            </a>
             <nav>
                 <ul>
                     <li><a href="#" class="link">Home</a></li>
@@ -20,35 +20,69 @@
                     <li><a href="#" class="link">ContactUs</a></li>
                 </ul>
             </nav>
-            <div id="logout" class="logout-bottom"> 
+            <div id="logout" class="logout-bottom">
                 <button onclick="location.href='/logout';">Logout</button>
             </div>
         </div>
 
         <div id="main-content">
             <!-- Content header with buttons and search -->
-            <script>
-                function uploadFile() {
-                    
-                    document.getElementById('fileInput').click();
-                }
-            </script>
             <div class="content-header">
-                <button>New folder</button>
+                <button onclick="createFolder()">New folder</button>
                 <button onclick="uploadFile()">+ Create file</button>
-                <input type="file" id="fileInput" style="display: none;">
                 <button>Delete selected</button>
                 <input type="search" placeholder="Search here">
             </div>
             <!-- File explorer area -->
+            <script>
+                function navigateToUrl(url) {
+                    window.location.href = url;
+                }
+            </script>
             <div class="file-explorer">
-                <div class="folder">Physics</div>
-                <div class="folder">Chemistry</div>
-                <div class="folder">Maths</div>
-                <div class="file">Getting started</div>
+                <% for(path in fs){ %>
+                    <div onclick="navigateToUrl(((window.location.pathname.slice(-1) === '/') ? window.location.pathname.slice(0, -1) : window.location.pathname) + '/' + '<%= path %>')" class="folder"><%= path %></div>
+                <% } %>
+                <% if(fs.length == 0){ %>
+                    Welcome to SummarizePro. For help getting started, click here.
+                <% } %>
+            </div>
+        </div>
+
+        <div id="popupContainer" style="display: none;">
+            <div class="popupContent uploadDialogue" style="display: none;">
+                <h1>Create a file in this directory:</h1>
+                <form action="/upload" method="post" enctype="multipart/form-data">
+                    <div>
+                        <label id="uploadFileTitleLabel" for="uploadFileTitle">Title: </label>
+                        <input name="title" id="uploadFileTitle" type="text" pattern="^[a-zA-Z0-9\s\._\-]*$" title="Only letters, numbers, spaces, dots, underscores, and dashes are allowed" required>
+                    </div>
+                    <label onclick="document.querySelector('#fileInput').click()" class="fileInputLabel"><img src="/images/upload.png" alt="upload icon">&nbsp;upload</label>
+                    <input accept=".pdf" name="file" type="file" id="fileInput" class="fileInput" style="display: none;" required>
+                    <span class="fileInputLabelName">Select a file...</span>
+                    <div style="display: flex; justify-content: space-between;">
+                        <button type="submit" class="create-button" action="submit">Create file</button>
+                        <button type="button" class="cancel-button"  onclick="closeUploadFile()">Cancel</button>
+                    </div>
+                </form>
             </div>
 
+            <div class="popupContent createFolderDialogue" style="display: none;">
+                <h1>Create a new folder in this directory:</h1>
+                <form action="/newfolder" method="post">
+                    <div>
+                        <label id="uploadFileTitleLabel" for="uploadFileTitle">Title: </label>
+                        <input name="title" id="uploadFileTitle" type="text" pattern="^[a-zA-Z0-9\s\._\-]*$" title="Only letters, numbers, spaces, dots, underscores, and dashes are allowed" required>
+                    </div>
+                    <div style="display: flex; justify-content: space-between;">
+                        <button type="submit" class="create-button" action="submit">Create file</button>
+                        <button type="button" class="cancel-button"  onclick="closeCreateFolder()">Cancel</button>
+                    </div>
+                </form>
+            </div>
         </div>
     </div>
 </body>
+
+<script src="/js/home.js"></script>
 </html>
