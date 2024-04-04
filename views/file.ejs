@@ -15,14 +15,9 @@
             </a>
             <nav>
                 <ul>
-                    <li><a href="/" class="link home-sidebar"><img src="/images/home.png" alt="home icon"> <% if(urlPath == ""){ %> home/ <% }else{ %> home/... </a></li></a><span> <%= urlPath.split("/").pop() %>/ </span> <% } %></a></li>
-
-                    <% for(let path in fs){ %>
-                        <li>
-                            <a onclick="navigateToUrl(((window.location.pathname.slice(-1) === '/') ? window.location.pathname.slice(0, -1) : window.location.pathname) + '/' + '<%= path %>')" class="link"><%= path %></a>
-                        </li>
-                    <% } %>
-
+                    <li><a href="#" class="link">Home</a></li>
+                    <li><a href="#" class="link">UserPage</a></li>
+                    <li><a href="#" class="link">ContactUs</a></li>
                 </ul>
             </nav>
             <div id="logout" class="logout-bottom">
@@ -41,31 +36,21 @@
             <!-- File explorer area -->
             <script>
                 function navigateToUrl(url) {
-                    console.log(url)
                     window.location.href = url;
                 }
             </script>
             <div class="file-explorer">
                 <% for(let path in fs){ %>
-                    <div class="folder" onclick="navigateToUrl(((window.location.pathname.slice(-1) === '/') ? window.location.pathname.slice(0, -1) : window.location.pathname) + '/' + '<%= path %>')">
+                    <div onclick="navigateToUrl(((window.location.pathname.slice(-1) === '/') ? window.location.pathname.slice(0, -1) : window.location.pathname) + '/' + '<%= path %>')" class="folder">
                         <img src="/images/folder_icon.png" alt="folder icon">
-                        <span><%= path %></span>
+                        <span data-hover-text="<%= path %>"><%= path %></span>
                     </div>
                 <% } %>
                 <% if(fs.length == 0){ %>
                     Welcome to SummarizePro. For help getting started, click here.
                 <% } %>
 
-                <% for(let file in files){ %>
-                    <div class="file" onclick="navigateToUrl((((window.location.pathname.slice(-1) === '/') ? window.location.pathname.slice(0, -1) : window.location.pathname) + '/' + '<%= file %>.file'))">
-                        <% if(files[file]){ %>
-                            <img src="/images/file_icon.png" alt="file icon">
-                        <% }else { %>
-                            <img class="processing" src="/images/file_loading_icon.gif" alt="file loading icon"> 
-                        <% } %>
-                        <span><%= file %></span>
-                    </div>
-                <% } %>
+
             </div>
         </div>
 

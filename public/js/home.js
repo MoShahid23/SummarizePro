@@ -1,6 +1,20 @@
 document.querySelector(".uploadDialogue h1").innerText = 'Create a file in "'+window.decodeURI(window.location.href).split("/")[window.decodeURI(window.location.href).split("/").length-1]+'"'+":"
 document.querySelector(".createFolderDialogue h1").innerText = 'Create a folder in "'+window.decodeURI(window.location.href).split("/")[window.decodeURI(window.location.href).split("/").length-1]+'"'+":"
 
+document.querySelector(".uploadDialogue .folderPathVar").setAttribute("value", window.location.href);
+document.querySelector(".createFolderDialogue .folderPathVar").setAttribute("value", window.location.href);
+
+
+// Check processing status periodically
+let processingChecker = setInterval(checkProcessingStatus, 5000); // Check every 5 seconds (5000 milliseconds)
+
+let processingCheckerEnder = setInterval(() => {
+    if(!document.querySelector(".processing")){
+        clearInterval(processingChecker);
+        clearInterval(processingCheckerEnder);
+    }
+}, 5000)
+
 //buttons to allow opening and closing of popup windows
 function uploadFile() {
     document.getElementById('popupContainer').style.display =  "flex";
@@ -40,4 +54,42 @@ document.addEventListener('DOMContentLoaded', function() {
 //will be used to implement loading screen.
 document.querySelector(".uploadDialogue form").addEventListener('submit', function(event) {
     console.log("loading")
+
+    // Check processing status periodically
+    let processingChecker = setInterval(checkProcessingStatus, 5000); // Check every 5 seconds (5000 milliseconds)
+
+    let processingCheckerEnder = setInterval(() => {
+        if(!document.querySelector(".processing")){
+            clearInterval(processingChecker);
+            clearInterval(processingCheckerEnder);
+        }
+    }, 5000)
 });
+
+
+// Function to check processing status and update icon if needed
+function checkProcessingStatus() {
+    if (document.querySelector(".processing")) {
+        fetch('/processing_check', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                filename:document.querySelector(".processing").parentNode.innerText
+            },
+            body: {}
+        })
+        .then(response => response.json())
+        .then(data => {
+            console.log("not processed")
+
+            if (data === false) {
+                console.log("processed")
+                document.querySelector(".processing").setAttribute("src", document.querySelector(".processing").getAttribute("src").replace("file_loading_icon.gif", "file_icon.png"))
+                document.querySelector(".processing").classList.remove("processing");
+            }
+        })
+        .catch(error => {
+            console.error('Error checking processing status:', error);
+        });
+    }
+}

@@ -32,7 +32,7 @@ input_mime_type = "application/pdf"
 field_mask = "text"
 
 # Set timeout for the operation
-timeout = 600  # Increase timeout if needed
+timeout = 10000  # Increase timeout if needed
 
 def upload_pdf_to_gcs(local_file_path: str, gcs_file_path: str):
     # Initialize the GCS client
@@ -151,7 +151,7 @@ def delete_files_in_bucket(bucket_name: str, prefix: str):
         print(f"Deleted {blob.name}.")
 
 #call the function to upload the PDF file to GCS
-upload_pdf_to_gcs(f'temp/{file}.pdf', f"{file}.pdf")
+upload_pdf_to_gcs(f'uploads/{file}.pdf', f"{file}.pdf")
 
 #process PDF
 document_chunks = text=batch_process_documents(

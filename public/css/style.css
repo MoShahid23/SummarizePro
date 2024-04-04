@@ -1,3 +1,4 @@
+
 body {
     margin: 0;
     padding: 0;
@@ -41,22 +42,75 @@ body {
     margin: auto;
 }
 
+nav{
+    height: 100%;
+}
+
 nav ul {
     list-style-type: none;
     padding: 0;
     margin: 0;
+    text-align: center;
+}
+
+nav ul span{
+    display: block;
+    margin-bottom: 5px;
+    background-color: #777;
+    width: 100%;
+    padding-right: 10px;
+    border-radius: 10px;
+    -webkit-border-radius: 10px;
+    -moz-border-radius: 10px;
+    -ms-border-radius: 10px;
+    -o-border-radius: 10px;
+}
+
+nav ul li{
+    display: block;
+}
+
+nav ul li .home-sidebar {
+
+    justify-content: start;
+    width: 100%;
+    text-align: left;
+    align-items: baseline;
+
+}
+nav ul li .home-sidebar img{
+    height: 100%;
+    margin-right: 5px;
 }
 
 nav ul li a {
-    display: block;
-    padding: 10px 0;
+    display: flex;
+    justify-content: center;
+    height: 30px;
+    width: 80%;
+    padding: 5px;
+    margin-left: auto;
+    margin-bottom: 5px;
+
+    text-align: center;
+    align-items: center;
+
     color: white;
+    background-color: #555;
     text-decoration: none;
+
+    border-radius: 5px;
+    -webkit-border-radius: 5px;
+    -moz-border-radius: 5px;
+    -ms-border-radius: 5px;
+    -o-border-radius: 5px;
 }
 
 nav ul li a:hover {
-    background-color: #555;
+    background-color: #333;
+    outline: #555 solid 1px;
 }
+
 
 #logout {
     text-align: center;
@@ -101,15 +155,69 @@ nav ul li a:hover {
 
 .folder,
 .file {
-    background-color: #ddd;
-    padding: 10px;
-    border-radius: 5px;
+    background-color: gray;
+    padding: 20px;
+    border-radius: 10px;
     cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    text-align: center;
+    overflow: hidden; /* Add this line to hide overflow content */
 }
+
+.folder span,
+.file span {
+    display: block;
+    color: white;
+    background-color: #333;
+    padding: 5px;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    border-radius: 10px;
+}
+
+/* Add the following CSS for expanding on hover */
+.folder:hover span,
+.file:hover span {
+    white-space: normal; /* Allow text to wrap */
+    overflow: visible; /* Show overflow content */
+}
+
+.folder:hover span,
+.file:hover span {
+    white-space: wrap; /* Prevent text wrapping */
+    overflow: visible; /* Allow overflow content to be visible */
+    text-overflow: clip; /* Clip text that overflows the container */
+    transition: all 0.4s; /* Add transition for smooth effect */
+    -webkit-transition: all 0.4s;
+    -moz-transition: all 0.4s;
+    -ms-transition: all 0.4s;
+    -o-transition: all 0.4s;
+}
+
 
 .folder:hover,
 .file:hover {
-    background-color: #ececec;
+    transition: all 0.4s;
+    background-color: #333;
+    -webkit-transition: all 0.4s;
+    -moz-transition: all 0.4s;
+    -ms-transition: all 0.4s;
+    -o-transition: all 0.4s;
+}
+
+.file img{
+    width: auto;
+}
+@keyframes blink {
+    0% { opacity: 0.2; }
+    50% { opacity: 1; }
+    100% { opacity: 0.2; }
+}
+
+.file .processing {
+    animation: blink 2s infinite;
 }
 
 @media (max-width: 768px) {
@@ -133,6 +241,7 @@ nav ul li a:hover {
     .file {
         margin-bottom: 10px;
     }
+
 }
 
 
@@ -348,3 +457,4 @@ nav ul li a:hover {
 .popupContent .fileInputLabelName{
     color: white;
 }
+

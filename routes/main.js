@@ -1,19 +1,20 @@
 const bcrypt = require('bcrypt');
-const spawn = require("child_process");
+const { spawn } = require("child_process");
 const { time } = require('console');
 const multer = require('multer'); // Import multer
-
+const fs = require('fs');
+const path = require('path');
 
 module.exports = function(app, renderData) {
     const isAuthenticated = (req, res, next) => {
         console.log(req.session.userEmail)
         if(req.session && req.session.userEmail) {
             // User is authenticated
-            console.log("authenticated login")
+            console.log("authenticated user.")
             return next();
         }else{
             // User is not authenticated, redirect to login page
-            console.log("not authenticated login")
+            console.log("unable to authenticate user, redirecting to login page.")
             res.redirect(req.app.get('baseUrl')+'/login');
         }
     };
@@ -21,10 +22,38 @@ module.exports = function(app, renderData) {
     // Set storage engine
     const storage = multer.diskStorage({
         destination: function (req, file, cb) {
-        cb(null, 'temp/'); // Destination directory for uploaded files
+            cb(null, 'uploads/'); // Destination directory for uploaded files
         },
         filename: function (req, file, cb) {
-        cb(null, req.session.userEmail+"&&d&&"+Date.now()+"&&d&&"+req.body.title+".pdf");
+            const userEmail = req.session.userEmail;
+            const timestamp = Date.now();
+            const filePath = decodeURI(req.body.path).split("/home/")[1];
+            const originalFileName = req.body.title + ".pdf";
+
+            // Query to count files with similar names and paths
+            const query = 'SELECT COUNT(*) AS count FROM documents WHERE email = ? AND file_path = ? AND file_name LIKE ?';
+            const searchPattern = `%${req.body.title}%`;
+
+            global.db.query(query, [userEmail, filePath, searchPattern], (error, results) => {
+                if (error) {
+                    console.error('Error checking file existence:', error);
+                    return cb(error);
+                }
+
+                // Get the count of files with similar names and paths
+                const count = results[0].count;
+
+                // Construct the final filename with user email, timestamp, path, and original file name
+                let finalFileName = originalFileName;
+                if (count > 0) {
+                    finalFileName = `${req.body.title}_${count}.pdf`;
+                }
+
+                // Construct the final filename with user email, timestamp, path, and unique file name
+                finalFileName = `${userEmail}&&d&&${timestamp}&&d&&${filePath}&&d&&${finalFileName}`;
+
+                cb(null, finalFileName);
+            });
         }
     });
 
@@ -34,9 +63,50 @@ module.exports = function(app, renderData) {
     });
 
     app.post('/upload', isAuthenticated, upload.single('file'), (req, res) => {
-        console.log(req.file); // Log the uploaded file object
-        res.redirect('/home/');
+        invokePythonMoroccanTranslator(req, res);
+        // SQL query to insert user details into the users table
+        let query = 'INSERT INTO documents (email, file_name, file_path) VALUES (?, ?, ?)';
+
+        // Execute the SQL query
+        global.db.query(query, [req.session.userEmail, req.file.filename, req.file.filename.split("&&d&&")[2]], (error, results, fields) => {
+            if (error) {
+                console.error('Error inserting document:', error);
+                res.status(500).send('Error creating file');
+                return;
+            }
+            console.log('document uploaded successfully');
+
+            res.redirect('/home/'+decodeURI(req.body.path).split("/home/")[1]);
+        });
     });
+
+    app.post('/processing_check', isAuthenticated, (req, res) => {
+        const start = req.session.userEmail; // First three letters of the file name
+        const end = req.headers.filename+".pkl";     // Last three letters of the file name
+        const directoryPath = path.join(__dirname, '../embeddings'); // Directory where files are stored
+
+        // Read all files in the directory
+        fs.readdir(directoryPath, (err, files) => {
+            if (err) {
+                console.error('Error reading directory:', err);
+                return res.status(500).send(true);
+            }
+
+            // Filter files based on start and end letters
+            const matchingFiles = files.filter(file => {
+                // Check if the file name matches the criteria
+                return file.startsWith(start) && file.endsWith(end); // Assuming file name length is always 9
+            });
+
+            // If any matching file is found, it means the file exists
+            if (matchingFiles.length > 0) {
+                res.send(false);
+            } else {
+                res.send(true);
+            }
+        });
+    });
+
 
     app.get('/', isAuthenticated, (req, res) => {
         res.redirect("/home");
@@ -45,8 +115,14 @@ module.exports = function(app, renderData) {
     //home  + location dir requested
     app.get('/home/*', isAuthenticated, (req, res) => {
 
+        if(decodeURIComponent(req.url).split("/").pop().includes(".file")){
+            res.redirect('/file/'+decodeURIComponent(req.url).split('/home/').join(""))
+            return next();
+        }
+
         let urlPath;
         let pathSegments;
+
         try{
             urlPath = decodeURIComponent(req.url).split('/home/')[1]; // Decode the URL and get the part after '/home'
             pathSegments = urlPath.split('/'); // Split the URL path into segments
@@ -56,17 +132,7 @@ module.exports = function(app, renderData) {
             pathSegments = null;
         }
 
-        req.session.fs = {
-            "Getting Started":{
-                "penis":{},
-                "eggplant":{}
-            },
-            "bruh":{},
-            "mathematics":{}
-        }
         let currentDirectory = req.session.fs; // Start from the root directory
-
-        console.log(pathSegments)
 
         // Traverse the JSON object based on the URL path segments
         for (const segment of pathSegments) {
@@ -81,11 +147,99 @@ module.exports = function(app, renderData) {
             }
         }
 
-        // Render the home template with the current directory's content
-        res.render(req.app.get('baseUrl') + 'home', { fs: currentDirectory });
+        //if reached this point, the url path must exist. the following code depends on this
+        let query = 'SELECT file_name FROM documents WHERE email = ? AND file_path = ?';
+        global.db.query(query, [req.session.userEmail, urlPath], (error, results) => {
+            if (error) {
+                console.error('Error loading files..', error);
+                return res.status(500).send('Internal Server Error');
+            }
+            console.log('User files loaded');
+            let files = {};
+            for(let file of results){
+                files[file.file_name.split("&&d&&")[3].replace(".pdf", "")] = fileExists("./embeddings/"+file.file_name.replace(".pdf", ".pkl"))
+            }
+            // Render the home template with the current directory's content
+            res.render(req.app.get('baseUrl') + 'home', { "fs": currentDirectory, "files":files, "urlPath":urlPath});
+        });
     });
     app.get('/home', isAuthenticated, (req, res) => {
         res.redirect("/home/")
+    });
+
+    app.post('/newfolder', isAuthenticated, (req, res) => {
+        // Check if the current path exists
+        let currentPath = decodeURIComponent(req.body.path).split('/home/')[1]; // Decode the URL and get the part after '/home'
+
+        // Split the path into segments
+        const segments = currentPath.split("/").filter(segment => segment !== '');
+
+        // Initialize a reference to the session directory structure
+        let currentDirectory = req.session.fs;
+
+        // Traverse the JSON structure based on the segments
+        for (const segment of segments) {
+            if (currentDirectory.hasOwnProperty(segment) && typeof currentDirectory[segment] === 'object') {
+                currentDirectory = currentDirectory[segment];
+            } else {
+                // Handle the case where the directory doesn't exist
+                return res.status(404).send('Directory not found');
+            }
+        }
+
+        // Add a new key to the final nested object in the JSON structure
+        const newFolderName = req.body.title;
+        if (!newFolderName || typeof newFolderName !== 'string') {
+            return res.status(400).send('Invalid folder title');
+        }
+
+        // Check if the new folder name already exists in the current directory
+        if (currentDirectory.hasOwnProperty(newFolderName)) {
+            return res.status(400).send('Folder already exists');
+        }
+
+        // Create a new folder in the current directory
+        currentDirectory[newFolderName] = {};
+
+
+        // Update the file system structure in the database
+        req.session.fs = req.session.fs;
+        const userId = req.session.userEmail; // Assuming you have access to the user's ID
+        const fsData = JSON.stringify(req.session.fs);
+
+        const updateQuery = 'UPDATE users SET fs = ? WHERE email = ?';
+        global.db.query(updateQuery, [fsData, userId], (error, results) => {
+            if (error) {
+                console.error('Error updating file system in the database:', error);
+                return res.status(500).send('Internal Server Error');
+            }
+            console.log('File system updated in the database');
+            res.redirect('/home/'+currentPath);
+        });
+    });
+
+    app.get('/file/*', isAuthenticated, (req, res) => {
+        console.log("made it bruv")
+        let urlPath = decodeURIComponent(req.url).split('/file/')[1];
+        let pathSegments = urlPath.split("/")
+        pathSegments.pop();
+
+        let currentDirectory = req.session.fs; // Start from the root directory
+
+        // Traverse the JSON object based on the URL path segments
+        for (const segment of pathSegments) {
+            if (segment !== '') {
+                if (currentDirectory.hasOwnProperty(segment) && typeof currentDirectory[segment] === 'object') {
+                    currentDirectory = currentDirectory[segment]; // Move to the next directory
+                } else {
+                    // Handle the case where the directory doesn't exist
+                    res.status(404).send('Directory not found');
+                    return;
+                }
+            }
+        }
+
+        res.render(req.app.get('baseUrl') + 'file', { "fs": currentDirectory});
     });
 
     // Route for the login page
@@ -235,16 +389,13 @@ module.exports = function(app, renderData) {
         });
     });
 
-    // Route for the Python script interaction (if needed)
-    app.get('/python', invokePythonMoroccanTranslator);
-
     // Callback function that handles requests to the '/python' endpoint
     function invokePythonMoroccanTranslator(req, res) {
         console.log("Spawning Python process");
-        var process = spawn('python', ["./test.py", req.query.text]); // Assuming you're passing text query parameter
+        var process = spawn('python3', ["doc_processing.py", req.file.filename.replace(".pdf", "")]); // Assuming you're passing text query parameter
 
         process.stdout.on('data', (data) => {
-            res.send(data.toString());
+            console.log(data.toString());
         });
 
         process.stderr.on('data', (data) => {
@@ -258,801 +409,20 @@ module.exports = function(app, renderData) {
         });
     };
 
-
-    // Handle routes
-    // Homepage
-    // app.get('/', isAuthenticated, function(req,res){
-    //     let newData = Object.assign({}, renderData, {sessionData:req.session});
-    //     let posts = [];
-
-    //     db.query('SELECT topic_id FROM members WHERE user_id = ?', [req.session.userId], (err, topicRows) => {
-    //         if (err) throw err;
-
-    //         // Extract topic IDs from the result
-    //         const topicIds = topicRows.map(row => row.topic_id);
-
-    //         // Step 2: Get Posts for Each Topic
-    //         if (topicIds.length > 0) {
-    //             const query =
-    //             'SELECT posts.id, posts.timestamp, posts.context, users.username, topics.name as topic_name ' +
-    //             'FROM posts ' +
-    //             'JOIN users ON posts.user_id = users.id ' +
-    //             'JOIN topics ON posts.topic_id = topics.id ' +
-    //             'WHERE posts.topic_id IN (?) ' +
-    //             'ORDER BY posts.timestamp DESC';
-
-    //           db.query(query, [topicIds], (err, results) => {
-    //             if (err) throw err;
-
-    //             // Add results to newData
-    //             newData = Object.assign({}, newData, { results });
-    //             // Render the template with newData
-    //             db.query(
-    //             'CALL GetUserTopics(?);',
-    //             [req.session.userId],
-    //             (err, results) => {
-    //                 if (err) throw err;
-    //                 // Extract topic names from the result
-    //                 const topicNamesList = results[0].map(row => row.name);
-    //                 // Add topicNamesList to newData
-    //                 newData = Object.assign({}, newData, { topicNamesList });
-    //                 res.render('index.ejs', newData);
-    //             });
-    //           });
-    //         } else {
-    //           // Handle the case where the user is not a member of any topics
-    //           console.log('User is not a member of any topics');
-    //         }
-    //     });
-    // });
-
-    // //serving login page
-    // app.get('/login', function(req,res){
-    //     if(req.session && req.session.userId) {
-    //         // User is authenticated
-    //         res.redirect(req.app.get('baseUrl')+'/')
-    //     }else{
-    //         // User is not authenticated, redirect to login page
-    //         let errorMessage = '';
-    //         let register = {registered:false, email:"", password:""};
-    //         if(req.query.error == 1){
-    //             errorMessage = 'Incorrect username or password!';
-    //         }
-    //         else if(req.query.error == 2){
-    //             errorMessage = 'Something went wrong. Please try agin later...';
-    //         }
-    //         if(req.query.registered == "true"){
-    //             register.email = req.query.email;
-    //             register.password = req.query.password;
-    //             register.registered = true;
-    //         }
-    //         let newData = Object.assign({}, renderData, {errorMessage, register});
-    //         res.render('login.ejs', newData);
-    //     }
-    // });
-
-    // app.post('/attempt_login', (req, res) => {
-    //     let { email, password } = req.body;
-
-    //     // Fetch user from the database based on the username and password
-    //     const query = 'SELECT * FROM users WHERE (email = ? OR username = ?) AND password = ?;'
-    //     db.query(query, [email, email, password], (err, results) => {
-    //         if(err){
-    //             console.error("error logging in", err)
-    //             res.redirect(req.app.get('baseUrl')+'/login?error=2');
-    //         }
-    //         else if(results.length == 1){
-    //             // Set up the session
-    //             req.session.userId = results[0].id;
-    //             req.session.userEmail = results[0].email;
-    //             req.session.username = results[0].username;
-    //             res.redirect(req.app.get('baseUrl')+'/');
-    //         }else{
-    //             // User not found or password incorrect
-    //             res.redirect(req.app.get('baseUrl')+'/login?error=1');
-    //         }
-    //     });
-    // });
-
-    // app.get('/logout', function(req,res){
-    //     req.session.destroy((err) => {
-    //         if (err) {
-    //           console.error('Error destroying session:', err);
-    //         }
-    //         // Redirect to the login page or any other desired page after logout
-    //         res.redirect(req.app.get('baseUrl')+'/login');
-    //     });
-    // });
-
-    // //serving login page
-    // app.get('/register', function(req,res){
-    //     if(req.session && req.session.userId) {
-    //         // User is authenticated
-    //         res.redirect(req.app.get('baseUrl')+'/')
-    //     }else{
-    //         // User is not authenticated, redirect to login page
-    //         let errorMessage = '';
-    //         if(req.query.error == 1){
-    //             errorMessage = 'There was an error while processing your request. Please try again later.';
-    //         }
-    //         else if(req.query.error == 2){
-    //             errorMessage = 'The email address you entered is already associated with a different account.';
-    //         }
-    //         else if(req.query.error == 3){
-    //             errorMessage = 'The username you entered is already in use.';
-    //         }
-
-    //         let newData = Object.assign({}, renderData, {errorMessage});
-    //         res.render('register.ejs', newData);
-    //     }
-    // });
-
-    // app.post('/attempt_register', (req, res) => {
-    //     let {First, Last, Username, email, password} = req.body;
-
-    //     //remove spaces and fix name case
-    //     First.replaceAll(" ", "");
-    //     First = First.substring(0, 1).toUpperCase() + First.substring(1);
-
-    //     Last.replaceAll(" ", "");
-    //     Last = Last.substring(0, 1).toUpperCase() + Last.substring(1);
-
-    //     // Fetch user from the database based on the username and password
-    //     const query = `
-    //     INSERT INTO users (first_name, last_name, username, email, password)
-    //     VALUES
-    //     (?, ?, ?, ?, ?);`;
-
-    //     const query2 = `
-    //     INSERT INTO members (topic_id, user_id)
-    //     VALUES
-    //     (1, LAST_INSERT_ID());`;     //the last bit is to add all users to the discussify topic by default
-
-    //     db.query(query, [First, Last, Username, email, password], (err, results) => {
-    //         if(err){
-    //             console.error("error registering", err)
-    //             if(err.sqlMessage.includes("email") && err.errno == 1062){
-    //                 res.redirect(req.app.get('baseUrl')+'/register?error=2')
-    //             }
-    //             else if(err.sqlMessage.includes("username") && err.errno == 1062){
-    //                 res.redirect(req.app.get('baseUrl')+'/register?error=3')
-    //             }
-    //             else{
-    //                 res.redirect(req.app.get('baseUrl')+'/register?error=1');
-    //             }
-    //         }
-    //         else{
-    //             // Set up the session
-    //             db.query(query2, (err, results) => {
-    //                 if(err){
-    //                     console.error("error registering", err)
-    //                     res.redirect(req.app.get('baseUrl')+'/register?error=1');
-    //                 }
-    //                 else{
-    //                     res.redirect(`${req.app.get('baseUrl')}/login?registered=true&password=${password}&email=${email}`);
-    //                 }
-    //             });
-    //         }
-    //     });
-    // });
-
-    // //list all books and their prices from database.
-    // app.get('/posts/:postid', isAuthenticated, function(req, res) {
-    //     let query = `
-    //         SELECT
-    //             posts.id AS post_id,
-    //             posts.timestamp,
-    //             posts.context,
-    //             topics.name AS topic_name,
-    //             users.username
-    //         FROM
-    //             posts
-    //         JOIN
-    //             topics ON posts.topic_id = topics.id
-    //         LEFT JOIN
-    //             users ON posts.user_id = users.id
-    //         WHERE
-    //             posts.id = ?;
-    //     `;
-
-    //     db.query(query, [req.params.postid], (err, results) => {
-    //         if (err) {
-    //             res.status(404).render('404.ejs');
-    //         }
-
-    //         //pass in all relevant data for ejs template render.
-    //         let newData = Object.assign({}, renderData, {sessionData:req.session, results});
-
-    //         db.query(
-    //             'CALL GetUserTopics(?);',
-    //             [req.session.userId],
-    //             (err, results) => {
-    //                 if (err) throw err;
-    //                 // Extract topic names from the result
-    //                 const topicNamesList = results[0].map(row => row.name);
-    //                 // Add topicNamesList to newData
-    //                 newData = Object.assign({}, newData, { topicNamesList });
-    //                 res.render("posts.ejs", newData);
-    //         });
-    //     });
-    // });
-
-    // app.get('/topics', isAuthenticated, function(req, res) {
-    //     let query = `
-    //         SELECT
-    //             name
-    //         FROM
-    //             topics
-    //         ORDER BY
-    //             name ASC;
-    //     `;
-
-    //     db.query(query, (err, results) => {
-    //         if (err) {
-    //             res.status(404).render('404.ejs');
-    //         }
-
-    //         //pass in all relevant data for ejs template render.
-    //         let newData = Object.assign({}, renderData, {sessionData:req.session, results});
-
-    //         db.query(
-    //             'CALL GetUserTopics(?);',
-    //             [req.session.userId],
-    //             (err, results) => {
-    //                 if (err) throw err;
-    //                 // Extract topic names from the result
-    //                 const topicNamesList = results[0].map(row => row.name);
-    //                 // Add topicNamesList to newData
-    //                 newData = Object.assign({}, newData, { topicNamesList });
-    //                 res.render("topics.ejs", newData);
-    //         });
-    //     });
-    // });
-
-    // app.get('/topics/:topic', isAuthenticated, function(req, res) {
-    //     console.log("params"+req.params.topic)
-    //     let query = `
-    //     SELECT
-    //         posts.id,
-    //         posts.timestamp,
-    //         posts.context,
-    //         topics.name AS topic_name,
-    //         users.username
-    //     FROM
-    //         posts
-    //     JOIN
-    //         topics ON posts.topic_id = topics.id
-    //     LEFT JOIN
-    //         users ON posts.user_id = users.id
-    //     WHERE
-    //         topics.name = ?;
-    //     `;
-
-    //     db.query(query, [req.params.topic], (err, results) => {
-    //         if (err) {
-    //             res.status(404).render('404.ejs');
-    //         }
-    //         console.log(results)
-    //         //pass in all relevant data for ejs template render.
-    //         let newData = Object.assign({}, renderData, {sessionData:req.session, results});
-
-    //         db.query(
-    //             'CALL GetUserTopics(?);',
-    //             [req.session.userId],
-    //             (err, results) => {
-    //                 if (err) throw err;
-    //                 // Extract topic names from the result
-    //                 const topicNamesList = results[0].map(row => row.name);
-    //                 // Add topicNamesList to newData
-    //                 newData = Object.assign({}, newData, { topicNamesList });
-    //                 res.render("topic.ejs", newData);
-    //         });
-    //     });
-    // });
-
-    // app.get('/users', isAuthenticated, function(req, res) {
-    //     let query = `
-    //         SELECT
-    //             username
-    //         FROM
-    //             users
-    //         ORDER BY
-    //             username ASC;
-    //     `;
-
-    //     db.query(query, (err, results) => {
-    //         if (err) {
-    //             res.status(404).render('404.ejs');
-    //         }
-
-    //             console.log(results)
-    //         //pass in all relevant data for ejs template render.
-    //         let newData = Object.assign({}, renderData, {sessionData:req.session, results});
-
-    //         db.query(
-    //             'CALL GetUserTopics(?);',
-    //             [req.session.userId],
-    //             (err, results) => {
-    //                 if (err) throw err;
-    //                 // Extract topic names from the result
-    //                 const topicNamesList = results[0].map(row => row.name);
-    //                 // Add topicNamesList to newData
-    //                 newData = Object.assign({}, newData, { topicNamesList });
-    //                 res.render("users.ejs", newData);
-    //         });
-    //     });
-    // });
-
-    // app.get('/users/:user', isAuthenticated, function(req, res) {
-    //     let query = `
-    //         SELECT
-    //             posts.id,
-    //             posts.timestamp,
-    //             posts.context,
-    //             topics.name AS topic_name,
-    //             users.username
-    //         FROM
-    //             posts
-    //         JOIN
-    //             topics ON posts.topic_id = topics.id
-    //         JOIN
-    //             users ON posts.user_id = users.id
-    //         WHERE
-    //             users.username = ?;
-    //     `;
-
-    //     db.query(query, [req.params.user], (err, results) => {
-    //         if (err) {
-    //             res.status(404).render('404.ejs');
-    //         }
-
-    //         //pass in all relevant data for ejs template render.
-    //         let newData = Object.assign({}, renderData, {sessionData:req.session, results});
-
-    //         let query = `
-    //             SELECT
-    //                 users.username,
-    //                 users.first_name,
-    //                 users.last_name,
-    //                 users.timestamp,
-    //                 topics.name AS topic_name
-    //             FROM
-    //                 users
-    //             LEFT JOIN members ON users.id = members.user_id
-    //             LEFT JOIN topics ON members.topic_id = topics.id
-    //             WHERE
-    //                 users.username = ?;
-    //         `;
-
-    //         db.query(query, [req.params.user], (err, results) => {
-    //             if (err) {
-    //                 res.status(404).render('404.ejs');
-    //             }
-    //             console.log(results)
-    //             //pass in all relevant data for ejs template render.
-    //             newData = Object.assign({}, newData, {user:results});
-
-    //             db.query(
-    //                 'CALL GetUserTopics(?);',
-    //                 [req.session.userId],
-    //                 (err, results) => {
-    //                     if (err) throw err;
-    //                     // Extract topic names from the result
-    //                     const topicNamesList = results[0].map(row => row.name);
-    //                     // Add topicNamesList to newData
-    //                     newData = Object.assign({}, newData, { topicNamesList });
-    //                     res.render("user.ejs", newData);
-    //             });
-    //         });
-    //     });
-    // });
-
-    // app.get('/create', isAuthenticated, function(req, res) {
-    //     res.redirect(req.app.get('baseUrl')+'/create/-')
-    // })
-
-    // app.get('/create/:topic', isAuthenticated, function(req, res) {
-
-    //     let newData;
-    //     newData = Object.assign({}, renderData, {sessionData:req.session, topic:req.params.topic});
-
-    //     let query = `
-    //         SELECT
-    //             name
-    //         FROM
-    //             topics
-    //         ORDER BY
-    //             name ASC;
-    //     `;
-
-    //     db.query(query, (err, allTopics) => {
-    //         if (err) {
-    //             res.status(404).render('404.ejs');
-    //         }
-
-    //         //pass in all relevant data for ejs template render.
-    //         newData = Object.assign({}, newData, {allTopics});
-
-    //         db.query(
-    //         'CALL GetUserTopics(?);',
-    //         [req.session.userId],
-    //         (err, results) => {
-    //             if (err) throw err;
-    //             // Extract topic names from the result
-    //             const topicNamesList = results[0].map(row => row.name);
-    //             // Add topicNamesList to newData
-    //             newData = Object.assign({}, newData, {topicNamesList});
-    //             res.render("create.ejs", newData);
-    //         });
-    //     });
-    // });
-
-    // app.post('/post/:status', isAuthenticated, function(req, res) {
-
-    //     if(req.params.status == "ok"){
-    //         let query = `
-    //             SELECT
-    //                 id
-    //             FROM
-    //                 topics
-    //             WHERE
-    //                 name = ?;
-    //         `
-
-    //         db.query(query, [req.body.topic_name], (err, topicID) => {
-    //             if (err) {
-    //                 res.status(404).render('404.ejs');
-    //             }
-
-    //             let query = `
-    //                 INSERT INTO
-    //                     posts (context, topic_id, user_id)
-    //                 VALUES
-    //                     (?, ?, ?);
-    //             `
-    //             db.query(query, [req.body.context, topicID[0].id, req.session.userId], (err, posted) => {
-    //                 if (err) {
-    //                     res.status(404).render('404.ejs');
-    //                 }
-
-    //                 let query = `
-    //                 SELECT
-    //                     id
-    //                 FROM
-    //                     posts
-    //                 WHERE
-    //                     topic_id = ? AND user_id = ?;
-    //                 `
-
-    //                 db.query(query, [topicID[0].id, req.session.userId], (err, postID) => {
-    //                     if (err) {
-    //                         res.status(404).render('404.ejs');
-    //                     }
-
-    //                     res.redirect(req.app.get('baseUrl')+"/posts/"+postID[postID.length-1].id);
-    //                 });
-    //             });
-    //         });
-    //     }
-    //     else if(req.params.status == "join"){
-    //         let query = `
-    //             SELECT
-    //                 id
-    //             FROM
-    //                 topics
-    //             WHERE
-    //                 name = ?;
-    //         `
-
-    //         db.query(query, [req.body.topic_name], (err, topicID) => {
-
-    //             if (err) {
-    //                 res.status(404).render('404.ejs');
-    //             }
-
-    //             let query = `
-    //                 INSERT INTO
-    //                     members (topic_id, user_id)
-    //                 VALUES
-    //                     (?, ?);
-    //             `
-
-    //             db.query(query, [topicID[0].id, req.session.userId], (err) => {
-
-    //                 if (err) {
-    //                     res.status(404).render('404.ejs');
-    //                 }
-
-    //                 let query = `
-    //                     INSERT INTO
-    //                         posts (context, topic_id, user_id)
-    //                     VALUES
-    //                         (?, ?, ?);
-    //                 `
-    //                 db.query(query, [req.body.context, topicID[0].id, req.session.userId], (err, posted) => {
-    //                     if (err) {
-    //                         res.status(404).render('404.ejs');
-    //                     }
-
-    //                     let query = `
-    //                     SELECT
-    //                         id
-    //                     FROM
-    //                         posts
-    //                     WHERE
-    //                         topic_id = ? AND user_id = ?;
-    //                     `
-
-    //                     db.query(query, [topicID[0].id, req.session.userId], (err, postID) => {
-    //                         if (err) {
-    //                             res.status(404).render('404.ejs');
-    //                         }
-
-    //                         res.redirect(req.app.get('baseUrl')+"/posts/"+postID[postID.length-1].id);
-    //                     });
-    //                 });
-    //             });
-    //         });
-    //     }
-    //     else if(req.params.status == "create"){
-    //         let query = `
-    //             CALL CreateTopic(?);
-    //         `
-
-    //         db.query(query, [req.body.topic_name], (err, topicID) => {
-    //             topicID[0].id = topicID[0][0].newTopicId;
-    //             console.log(topicID)
-
-    //             if (err) {
-    //                 res.status(404).render('404.ejs');
-    //             }
-
-    //             let query = `
-    //                 INSERT INTO
-    //                     members (topic_id, user_id)
-    //                 VALUES
-    //                     (?, ?);
-    //             `
-
-    //             db.query(query, [topicID[0].id, req.session.userId], (err) => {
-
-    //                 if (err) {
-    //                     res.status(404).render('404.ejs');
-    //                 }
-
-    //                 let query = `
-    //                     INSERT INTO
-    //                         posts (context, topic_id, user_id)
-    //                     VALUES
-    //                         (?, ?, ?);
-    //                 `
-    //                 db.query(query, [req.body.context, topicID[0].id, req.session.userId], (err, posted) => {
-    //                     if (err) {
-    //                         res.status(404).render('404.ejs');
-    //                     }
-
-    //                     let query = `
-    //                     SELECT
-    //                         id
-    //                     FROM
-    //                         posts
-    //                     WHERE
-    //                         topic_id = ? AND user_id = ?;
-    //                     `
-
-    //                     db.query(query, [topicID[0].id, req.session.userId], (err, postID) => {
-    //                         if (err) {
-    //                             res.status(404).render('404.ejs');
-    //                         }
-
-    //                         res.redirect(req.app.get('baseUrl')+"/posts/"+postID[postID.length-1].id);
-    //                     });
-    //                 });
-    //             });
-    //         });
-    //     }
-
-    // });
-
-    // app.get('/profile', isAuthenticated, function(req, res) {
-    //     let query = `
-    //         SELECT
-    //             posts.id,
-    //             posts.timestamp,
-    //             posts.context,
-    //             topics.name AS topic_name,
-    //             users.username
-    //         FROM
-    //             posts
-    //         JOIN
-    //             topics ON posts.topic_id = topics.id
-    //         JOIN
-    //             users ON posts.user_id = users.id
-    //         WHERE
-    //             users.username = ?;
-    //     `;
-
-    //     db.query(query, [req.session.username], (err, results) => {
-    //         if (err) {
-    //             res.status(404).render('404.ejs');
-    //         }
-
-    //         //pass in all relevant data for ejs template render.
-    //         let newData = Object.assign({}, renderData, {sessionData:req.session, results});
-
-    //         let query = `
-    //             SELECT
-    //                 users.username,
-    //                 users.first_name,
-    //                 users.last_name,
-    //                 users.timestamp,
-    //                 topics.name AS topic_name
-    //             FROM
-    //                 users
-    //             LEFT JOIN members ON users.id = members.user_id
-    //             LEFT JOIN topics ON members.topic_id = topics.id
-    //             WHERE
-    //                 users.username = ?;
-    //         `;
-
-    //         db.query(query, [req.session.username], (err, results) => {
-    //             if (err) {
-    //                 res.status(404).render('404.ejs');
-    //             }
-    //             console.log(results)
-    //             //pass in all relevant data for ejs template render.
-    //             newData = Object.assign({}, newData, {user:results});
-
-    //             db.query(
-    //                 'CALL GetUserTopics(?);',
-    //                 [req.session.userId],
-    //                 (err, results) => {
-    //                     if (err) throw err;
-    //                     // Extract topic names from the result
-    //                     const topicNamesList = results[0].map(row => row.name);
-    //                     // Add topicNamesList to newData
-    //                     newData = Object.assign({}, newData, { topicNamesList, deleted:req.query.deleted });
-    //                     res.render("profile.ejs", newData);
-    //             });
-    //         });
-    //     });
-    // });
-
-    // app.get('/delete/:postID', isAuthenticated, function(req, res) {
-    //     let query = `
-    //     SELECT
-    //         CASE
-    //             WHEN COUNT(*) = 0 THEN 1  -- It's the first post
-    //             ELSE 0                      -- It's not the first post
-    //         END AS isFirstPost
-    //     FROM
-    //         posts
-    //     WHERE
-    //         topic_id = (SELECT topic_id FROM posts WHERE id = ?)
-    //         AND timestamp < (SELECT timestamp FROM posts WHERE id = ?);
-    //     `;
-
-    //     db.query(query, [req.params.postID, req.params.postID], (err, isFirstPost) => {
-    //         if (err) {
-    //             console.error(err)
-    //             res.status(404).render('404.ejs');
-    //         }
-
-    //         console.log(isFirstPost)
-
-
-    //         if(isFirstPost[0].isFirstPost == 0){
-    //             let query = `
-    //                 DELETE FROM posts WHERE id = ?;
-    //             `;
-
-    //             db.query(query, [req.params.postID], (err, results) => {
-    //                 if (err) {
-    //                     res.status(404).render('404.ejs');
-    //                 }
-
-    //                 res.redirect(req.app.get('baseUrl')+'/profile?deleted=true')
-    //             });
-    //         }
-    //         else if(isFirstPost[0].isFirstPost == 1){
-    //             let query = `
-    //                 UPDATE posts SET user_id = NULL WHERE id = ?;
-    //             `;
-
-    //             db.query(query, [req.params.postID], (err, results) => {
-    //                 if (err) {
-    //                     res.status(404).render('404.ejs');
-    //                 }
-
-    //                 res.redirect(req.app.get('baseUrl')+'/profile?deleted=true')
-    //             });
-    //         }
-    //         else{
-    //             res.status(404).render('404.ejs');
-    //         }
-    //     });
-    // });
-
-    // app.get('/edit/:postID', isAuthenticated, function(req, res) {
-    //     let query = `
-    //         SELECT
-    //             posts.id AS post_id,
-    //             posts.timestamp,
-    //             posts.context,
-    //             topics.name AS topic_name,
-    //             users.username
-    //         FROM
-    //             posts
-    //         JOIN
-    //             topics ON posts.topic_id = topics.id
-    //         LEFT JOIN
-    //             users ON posts.user_id = users.id
-    //         WHERE
-    //             posts.id = ?;
-    //     `;
-
-    //     db.query(query, [req.params.postID, req.params.postID], (err, result) => {
-    //         if (err) {
-    //             console.error(err)
-    //             res.status(404).render('404.ejs');
-    //         }
-
-    //         //verify user is creator of post
-    //         if(result[0].username == req.session.username){
-    //             let newData = Object.assign({}, renderData, {sessionData:req.session, results:result});
-
-    //             db.query(
-    //                 'CALL GetUserTopics(?);',
-    //                 [req.session.userId],
-    //                 (err, results) => {
-    //                     if (err) throw err;
-    //                     // Extract topic names from the result
-    //                     const topicNamesList = results[0].map(row => row.name);
-    //                     // Add topicNamesList to newData
-    //                     newData = Object.assign({}, newData, { topicNamesList });
-    //                     res.render("edit.ejs", newData);
-    //             });
-    //         }
-    //         else{
-    //             res.status(404).render('404.ejs');
-    //         }
-
-    //     });
-    // });
-
-    // app.get('/follow/:topic', isAuthenticated, function(req, res) {
-    //     let query = `
-    //         INSERT INTO
-    //             members (topic_id, user_id)
-    //         VALUES
-    //         ((SELECT id FROM topics WHERE name = ?), ?);
-    //     `;
-
-    //     db.query(query, [req.params.topic, req.session.userId], (err, result) => {
-    //         if (err) {
-    //             console.error(err)
-    //             res.status(404).render('404.ejs');
-    //         }
-    //         res.redirect(req.app.get('baseUrl')+"/topics/"+req.params.topic);
-    //     });
-    // });
-
-    // app.get('/unfollow/:topic', isAuthenticated, function(req, res) {
-    //     let query = `
-    //         DELETE FROM
-    //             members
-    //         WHERE
-    //             topic_id = (SELECT id FROM topics WHERE name = ?)
-    //             AND
-    //             user_id = ?;
-    //     `;
-
-    //     db.query(query, [req.params.topic, req.session.userId], (err, result) => {
-    //         if (err) {
-    //             console.error(err)
-    //             res.status(404).render('404.ejs');
-    //         }
-    //         res.redirect(req.app.get('baseUrl')+"/topics/"+req.params.topic);
-    //     });
-    // });
+    // Define the catch-all route handler
+    app.use((req, res) => {
+        res.status(404).send('404 - Not Found');
+    });
+
+    function fileExists(filePath) {
+        try {
+            // Check if the file exists by attempting to access its stats
+            fs.statSync(filePath);
+            // If no error is thrown, the file exists
+            return true;
+        } catch (error) {
+            // If an error is thrown, the file does not exist
+            return false;
+        }
+    }
 }
