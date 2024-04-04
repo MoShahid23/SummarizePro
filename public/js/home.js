@@ -8,6 +8,11 @@ document.querySelector(".createFolderDialogue .folderPathVar").setAttribute("val
 // Check processing status periodically
 let processingChecker = setInterval(checkProcessingStatus, 5000); // Check every 5 seconds (5000 milliseconds)
 
+function navigateToUrl(url) {
+    console.log(url)
+    window.location.href = url;
+}
+
 let processingCheckerEnder = setInterval(() => {
     if(!document.querySelector(".processing")){
         clearInterval(processingChecker);

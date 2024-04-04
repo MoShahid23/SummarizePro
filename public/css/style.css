@@ -56,7 +56,7 @@ nav ul {
 nav ul span{
     display: block;
     margin-bottom: 5px;
-    background-color: #777;
+    border: 2px solid #777;
     width: 100%;
     padding-right: 10px;
     border-radius: 10px;
@@ -112,22 +112,114 @@ nav ul li a:hover {
 }
 
 
-#logout {
+#profile {
+    position: relative;
     text-align: center;
     padding: 10px 0;
 }
 
-#logout button {
+#profile .dropdown-btn {
+    display: flex;
+    align-items: center;
+
     width: 100%;
+    height: 100%;
+    border: none;
+    color: white;
+    background-color: #555;
     padding: 10px;
     border: none;
-    background-color: #f4f4f4;
-    color: #333;
     cursor: pointer;
+
+    border-radius: 10px;
+    -webkit-border-radius: 10px;
+    -moz-border-radius: 10px;
+    -ms-border-radius: 10px;
+    -o-border-radius: 10px;
+}
+#profile .dropdown-btn img{
+    width: 10%;
+    margin-right: 5px;
 }
 
-#logout button:hover {
-    background-color: #e9e9e9;
+#profile .dropdown-menu {
+    display: none;
+    position: absolute;
+    top: auto;
+    bottom: 85%;
+    left: 0;
+    background-color: #111;
+    z-index: 1;
+    width: 100%;
+    padding: 10px 0;
+
+    opacity: 0; /* Initially set the opacity to 0 */
+    animation: fade-in 0.5s ease forwards; /* Apply the animation */
+
+    border-radius: 10px;
+    -webkit-border-radius: 10px;
+    -moz-border-radius: 10px;
+    -ms-border-radius: 10px;
+    -o-border-radius: 10px;
+}
+
+#profile .dropdown-menu a {
+    display: flex;
+    flex-direction: row;
+    justify-content: start;
+    vertical-align: bottom;
+
+    width: 100%;
+    height: 30px;
+    text-decoration: none;
+    color: white;
+    padding: 10px 0;
+
+    border-radius: 10px;
+    -webkit-border-radius: 10px;
+    -moz-border-radius: 10px;
+    -ms-border-radius: 10px;
+    -o-border-radius: 10px;
+
+    transition: all 0.3s;
+    -webkit-transition: all 0.3s;
+    -moz-transition: all 0.3s;
+    -ms-transition: all 0.3s;
+    -o-transition: all 0.3s;
+}
+
+#profile .dropdown-menu a:hover {
+    background-color: #555;
+
+    transition: all 0.3s;
+    -webkit-transition: all 0.3s;
+    -moz-transition: all 0.3s;
+    -ms-transition: all 0.3s;
+    -o-transition: all 0.3s;
+}
+
+#profile .dropdown-menu a img{
+    height: 80%;
+    margin-left: 10px;
+}
+
+#profile .dropdown-menu a span{
+    display: inline-block;
+    height: fit-content;
+    margin-top: 5px;
+}
+
+#profile .dropdown-btn:focus + .dropdown-menu,  .dropdown-menu:hover{
+    display: block;
+    animation-play-state: running; /* Start the animation on hover */
+}
+@keyframes fade-in {
+    0% {
+        opacity: 0; /* Start with opacity 0 */
+    }
+    100% {
+        opacity: 1; /* End with opacity 1 */
+    }
 }
 
 #main-content {
@@ -138,12 +230,171 @@ nav ul li a:hover {
 }
 
 .content-header {
+    display: flex;
     margin-bottom: 20px;
 }
 
-.content-header button,
-.content-header input[type=search] {
+.content-header button{
     margin-right: 10px;
+    color: #ddd;
+    background-color: #333;
+    border: none;
+    font-size: 18px;
+    padding: 10px;
+    outline: 2px transparent solid;
+
+    transition: all 0.5s;
+    border-radius: 10px;
+    -webkit-transition: all 0.5s;
+    -moz-transition: all 0.5s;
+    -ms-transition: all 0.5s;
+    -o-transition: all 0.5s;
+}
+.content-header button:hover{
+    color: #333;
+    background-color: #ddd;
+    outline: 2px #333 solid;
+
+    transition: all 0.5s;
+    -webkit-transition: all 0.5s;
+    -moz-transition: all 0.5s;
+    -ms-transition: all 0.5s;
+    -o-transition: all 0.5s;
+}
+
+.content-header div{
+    display: inline-block;
+    width: 50%;
+    margin-left: auto;
+    position: relative;
+}
+.content-header div::before {
+    content: "";
+    position: absolute;
+    left: 10px; /* Adjust the position of the icon */
+    top: 50%; /* Adjust the position of the icon */
+    transform: translateY(-50%); /* Center vertically */
+    width: 20px; /* Adjust the size of the icon */
+    height: 20px; /* Adjust the size of the icon */
+    background-image: url('/images/search.png'); /* URL to your icon */
+    background-size: contain; /* Make sure the icon fits */
+    background-repeat: no-repeat; /* Prevent the icon from repeating */
+}
+.content-header div input[type=search] {
+
+    width: 100%;
+    color: white;
+    background-color: #333;
+    border: none;
+    font-size: 18px;
+    letter-spacing: 1px;
+    padding: 10px;
+    padding-left: 35px;
+
+    transition: all 0.5s;
+    border-radius: 10px;
+    -webkit-transition: all 0.5s;
+    -moz-transition: all 0.5s;
+    -ms-transition: all 0.5s;
+    -o-transition: all 0.5s;
+}
+.content-header div input[type=search]:focus{
+    color: black;
+    background-color: white;
+    outline: 2px #555 solid;
+    transition: all 0.5s;
+    -webkit-transition: all 0.5s;
+    -moz-transition: all 0.5s;
+    -ms-transition: all 0.5s;
+    -o-transition: all 0.5s;
+}
+
+
+.traversal-detail{
+    display: flex;
+    padding: 20px;
+    border-top: 1px solid black;
+
+}
+
+.traversal-detail input{
+    width: 100%;
+    color: white;
+    background-color: #333;
+    border: none;
+    font-size: 18px;
+    letter-spacing: 1px;
+    padding: 10px;
+    border-radius: 0 10px 10px 0;
+    -webkit-border-radius: 0 10px 10px 0;
+    -moz-border-radius: 0 10px 10px 0;
+    -ms-border-radius: 0 10px 10px 0;
+    -o-border-radius: 0 10px 10px 0;
+}
+.traversal-detail input:focus{
+    border: none;
+    outline: none;
+}
+
+.traversal-detail button{
+    width: 50px;
+    background-color: #333;
+    border: none;
+    border-right: solid 1px white;
+    display: flex;
+    justify-content: center;
+
+    border-radius: 10px 0 0 10px;
+    -webkit-border-radius: 10px 0 0 10px;
+    -moz-border-radius: 10px 0 0 10px;
+    -ms-border-radius: 10px 0 0 10px;
+    -o-border-radius: 10px 0 0 10px;
+    transition: all 0.2s;
+    -webkit-transition: all 0.2s;
+    -moz-transition: all 0.2s;
+    -ms-transition: all 0.2s;
+    -o-transition: all 0.2s;
+}
+.traversal-detail button:hover{
+    background-color: #555;
+    transition: all 0.2s;
+    -webkit-transition: all 0.2s;
+    -moz-transition: all 0.2s;
+    -ms-transition: all 0.2s;
+    -o-transition: all 0.2s;
+}
+.traversal-detail button:active{
+    border: 2px solid white;
+    transition: none;
+    -webkit-transition: none;
+    -moz-transition: none;
+    -ms-transition: none;
+    -o-transition: none;
+}
+.traversal-detail button img{
+    margin: auto;
+    width: 80%;
+}
+
+.traversal-detail.file-page{
+    border-top: none;
+    padding: 0;
+}
+.traversal-detail.file-page input{
+    width: 80%;
+}
+.traversal-detail.file-page .delete{
+    align-items: center;
+    color: white;
+    text-align: center;
+    margin-left: auto;
+    background-color:#dd4b39;
+    width: 8%;
+    border-radius: 10px;
+    -webkit-border-radius: 10px;
+    -moz-border-radius: 10px;
+    -ms-border-radius: 10px;
+    -o-border-radius: 10px;
 }
 
 .file-explorer {
@@ -157,12 +408,23 @@ nav ul li a:hover {
 .file {
     background-color: gray;
     padding: 20px;
-    border-radius: 10px;
     cursor: pointer;
     display: flex;
     flex-direction: column;
     text-align: center;
-    overflow: hidden; /* Add this line to hide overflow content */
+    overflow: hidden;
+
+    border-radius: 10px;
+    -webkit-border-radius: 10px;
+    -moz-border-radius: 10px;
+    -ms-border-radius: 10px;
+    -o-border-radius: 10px;
+
+    transition: all 0.4s; /* Add transition for smooth effect */
+    -webkit-transition: all 0.4s;
+    -moz-transition: all 0.4s;
+    -ms-transition: all 0.4s;
+    -o-transition: all 0.4s;
 }
 
 .folder span,
@@ -174,7 +436,18 @@ nav ul li a:hover {
     overflow: hidden;
     white-space: nowrap;
     text-overflow: ellipsis;
+
     border-radius: 10px;
+    -webkit-border-radius: 10px;
+    -moz-border-radius: 10px;
+    -ms-border-radius: 10px;
+    -o-border-radius: 10px;
+
+    transition: all 0.4s; /* Add transition for smooth effect */
+    -webkit-transition: all 0.4s;
+    -moz-transition: all 0.4s;
+    -ms-transition: all 0.4s;
+    -o-transition: all 0.4s;
 }
 
 /* Add the following CSS for expanding on hover */
@@ -182,6 +455,12 @@ nav ul li a:hover {
 .file:hover span {
     white-space: normal; /* Allow text to wrap */
     overflow: visible; /* Show overflow content */
+
+    transition: all 0.4s; /* Add transition for smooth effect */
+    -webkit-transition: all 0.4s;
+    -moz-transition: all 0.4s;
+    -ms-transition: all 0.4s;
+    -o-transition: all 0.4s;
 }
 
 .folder:hover span,
@@ -189,6 +468,7 @@ nav ul li a:hover {
     white-space: wrap; /* Prevent text wrapping */
     overflow: visible; /* Allow overflow content to be visible */
     text-overflow: clip; /* Clip text that overflows the container */
+
     transition: all 0.4s; /* Add transition for smooth effect */
     -webkit-transition: all 0.4s;
     -moz-transition: all 0.4s;
@@ -201,6 +481,7 @@ nav ul li a:hover {
 .file:hover {
     transition: all 0.4s;
     background-color: #333;
+
     -webkit-transition: all 0.4s;
     -moz-transition: all 0.4s;
     -ms-transition: all 0.4s;
@@ -298,18 +579,26 @@ nav ul li a:hover {
     width: 100%;
     padding: 0.5rem;
     margin-top: 0.5rem;
-    border-radius: 4px;
     border: 1px solid #ddd;
+    border-radius: 4px;
+    -webkit-border-radius: 4px;
+    -moz-border-radius: 4px;
+    -ms-border-radius: 4px;
+    -o-border-radius: 4px;
 }
 
 .btn-login,
 .btn-google-login {
     width: 100%;
     padding: 0.75rem;
-    border-radius: 4px;
     border: none;
     margin-top: 0.5rem;
     cursor: pointer;
+    border-radius: 4px;
+    -webkit-border-radius: 4px;
+    -moz-border-radius: 4px;
+    -ms-border-radius: 4px;
+    -o-border-radius: 4px;
 }
 
 .btn-login {
@@ -373,8 +662,8 @@ nav ul li a:hover {
     margin-top: 30px;
     padding: 5px;
     font-size: 20px;
-    border-radius: 10px;
     border: none;
+    border-radius: 10px;
     -webkit-border-radius: 10px;
     -moz-border-radius: 10px;
     -ms-border-radius: 10px;
@@ -386,8 +675,8 @@ nav ul li a:hover {
     margin-top: 30px;
     padding: 5px;
     font-size: 20px;
-    border-radius: 10px;
     border: none;
+    border-radius: 10px;
     -webkit-border-radius: 10px;
     -moz-border-radius: 10px;
     -ms-border-radius: 10px;
@@ -441,12 +730,15 @@ nav ul li a:hover {
     width: fit-content;
     display: inline-flex;
     align-items: center;
-
     background-color: lightgray;
     padding: 5px 10px;
     font-size: 20px;
     text-align: center;
     border-radius: 20px;
+    -webkit-border-radius: 20px;
+    -moz-border-radius: 20px;
+    -ms-border-radius: 20px;
+    -o-border-radius: 20px;
 }
 .popupContent .fileInputLabel:hover{
     background-color: white;

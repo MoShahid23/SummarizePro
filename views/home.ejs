@@ -15,18 +15,29 @@
             </a>
             <nav>
                 <ul>
-                    <li><a href="/" class="link home-sidebar"><img src="/images/home.png" alt="home icon"> <% if(urlPath == ""){ %> home/ <% }else{ %> home/... </a></li></a><span> <%= urlPath.split("/").pop() %>/ </span> <% } %></a></li>
+                    <li>
+                        <a href="/" class="link home-sidebar">
+                            <img src="/images/home.png" alt="home icon">
+                            home
+                        </a>
+                        <span>
+                            <% if(urlPath !== "") { %>.../<%}%><%= urlPath.split("/").pop() %>/
+                        </span>
+                    </li>
 
-                    <% for(let path in fs){ %>
+                    <% for(let path in fs) { %>
                         <li>
-                            <a onclick="navigateToUrl(((window.location.pathname.slice(-1) === '/') ? window.location.pathname.slice(0, -1) : window.location.pathname) + '/' + '<%= path %>')" class="link"><%= path %></a>
+                            <a onclick="navigateToUrl(((window.location.pathname.slice(-1) === '/') ? window.location.pathname.slice(0, -1) : window.location.pathname) + '/' + '<%= path %>')" class="link"><%= path %>/</a>
                         </li>
                     <% } %>
-
                 </ul>
             </nav>
-            <div id="logout" class="logout-bottom">
-                <button onclick="location.href='/logout';">Logout</button>
+            <div id="profile" class="profile-bottom">
+                <button class="dropdown-btn"><img src="/images/email.png" alt="email icon">blah@gmail.com</button>
+                <div class="dropdown-menu">
+                    <a onclick="location.href='/logout'"><img src="/images/key.png" alt="key icon"><span>&nbsp;Change password</span></a>
+                    <a onclick="location.href='/logout'"><img src="/images/logout.png" alt="logout icon"><span>&nbsp;Logout</span></a>
+                </div>
             </div>
         </div>
 
@@ -36,15 +47,16 @@
                 <button onclick="createFolder()">New folder</button>
                 <button onclick="uploadFile()">+ Create file</button>
                 <button>Delete selected</button>
-                <input type="search" placeholder="Search here">
+                <div><input type="search" placeholder="Search here"></div>
+            </div>
+            <!-- Folder info area -->
+            <div class="traversal-detail">
+                <button onclick="navigateToUrl('/home/' + '<%= urlPath %>'.split('/').slice(0, -1).join('/'))">
+                    <img src="/images/back.png" alt="">
+                </button>
+                <input type="text" readonly value="/home/<%=urlPath%>">
             </div>
             <!-- File explorer area -->
-            <script>
-                function navigateToUrl(url) {
-                    console.log(url)
-                    window.location.href = url;
-                }
-            </script>
             <div class="file-explorer">
                 <% for(let path in fs){ %>
                     <div class="folder" onclick="navigateToUrl(((window.location.pathname.slice(-1) === '/') ? window.location.pathname.slice(0, -1) : window.location.pathname) + '/' + '<%= path %>')">
@@ -61,10 +73,13 @@
                         <% if(files[file]){ %>
                             <img src="/images/file_icon.png" alt="file icon">
                         <% }else { %>
-                            <img class="processing" src="/images/file_loading_icon.gif" alt="file loading icon"> 
+                            <img class="processing" src="/images/file_loading_icon.gif" alt="file loading icon">
                         <% } %>
                         <span><%= file %></span>
                     </div>
+
+                <% } if(Object.keys(files).length == 0 && Object.keys(fs).length == 0){ %>
+                    <span>Nothing in here yet... <br>click here for help getting started</span>
                 <% } %>
             </div>
         </div>

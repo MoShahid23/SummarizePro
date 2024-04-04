@@ -239,7 +239,7 @@ module.exports = function(app, renderData) {
             }
         }
 
-        res.render(req.app.get('baseUrl') + 'file', { "fs": currentDirectory});
+        res.render(req.app.get('baseUrl') + 'file', { "fs": currentDirectory, "urlPath":urlPath});
     });
 
     // Route for the login page
