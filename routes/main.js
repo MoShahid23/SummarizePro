@@ -1,11 +1,12 @@
 const bcrypt = require('bcrypt');
 const { spawn } = require("child_process");
-const { time } = require('console');
+const { time, error } = require('console');
 const multer = require('multer'); // Import multer
 const fs = require('fs');
 const path = require('path');
 
 module.exports = function(app, renderData) {
+
     const isAuthenticated = (req, res, next) => {
         console.log(req.session.userEmail)
         if(req.session && req.session.userEmail) {
@@ -63,7 +64,7 @@ module.exports = function(app, renderData) {
     });
 
     app.post('/upload', isAuthenticated, upload.single('file'), (req, res) => {
-        invokePythonMoroccanTranslator(req, res);
+        invokePythonDocumentProcessor(req, res);
         // SQL query to insert user details into the users table
         let query = 'INSERT INTO documents (email, file_name, file_path) VALUES (?, ?, ?)';
 
@@ -80,31 +81,35 @@ module.exports = function(app, renderData) {
         });
     });
 
-    app.post('/processing_check', isAuthenticated, (req, res) => {
-        const start = req.session.userEmail; // First three letters of the file name
-        const end = req.headers.filename+".pkl";     // Last three letters of the file name
-        const directoryPath = path.join(__dirname, '../embeddings'); // Directory where files are stored
+    app.post('/processing_check', (req, res) => {
 
-        // Read all files in the directory
-        fs.readdir(directoryPath, (err, files) => {
-            if (err) {
-                console.error('Error reading directory:', err);
-                return res.status(500).send(true);
-            }
+        const filename = req.body.filename+".pdf";
+        const userEmail = "bruh@gmail.com";
 
-            // Filter files based on start and end letters
-            const matchingFiles = files.filter(file => {
-                // Check if the file name matches the criteria
-                return file.startsWith(start) && file.endsWith(end); // Assuming file name length is always 9
-            });
-
-            // If any matching file is found, it means the file exists
-            if (matchingFiles.length > 0) {
-                res.send(false);
+        const query = `
+            SELECT summary
+            FROM documents
+            WHERE file_name LIKE ? AND email = ?
+        `;
+        db.query(query, [`%${filename}%`, userEmail], (error, results) => {
+            if (error) {
+                console.error(`Error querying database: ${error}`);
+                res.status(500).send(true);
             } else {
-                res.send(true);
+                console.log(results)
+                if (results.length > 0) {
+                    const summary = results[0].summary;
+                    if (!summary) {
+                        res.send(true);
+                    } else {
+                        res.send(false);
+                    }
+                } else {
+                    res.status(404).send(true); // No matching document found
+                }
             }
         });
+
     });
 
 
@@ -116,8 +121,7 @@ module.exports = function(app, renderData) {
     app.get('/home/*', isAuthenticated, (req, res) => {
 
         if(decodeURIComponent(req.url).split("/").pop().includes(".file")){
-            res.redirect('/file/'+decodeURIComponent(req.url).split('/home/').join(""))
-            return next();
+            return res.redirect('/file/'+decodeURIComponent(req.url).split('/home/').join(""))
         }
 
         let urlPath;
@@ -239,7 +243,44 @@ module.exports = function(app, renderData) {
             }
         }
 
-        res.render(req.app.get('baseUrl') + 'file', { "fs": currentDirectory, "urlPath":urlPath});
+        console.log(urlPath)
+        let filename = urlPath.split("/").pop().replace(".file",".pdf");
+        let filedir = urlPath.split("/");
+        filedir.pop();
+        filedir = filedir.join("");
+
+        let folderPath = path.join(__dirname, '../uploads')
+        let foundPDF;
+
+        fs.readdir(folderPath, (err, files) => {
+            if (err) {
+                console.error('Error reading folder:', err);
+                res.send("Your file could not be found. Please contact us if this issue continues.");
+            }
+
+            // Filter out directories from the list of files
+            const fileList = files.filter(file => fs.statSync(path.join(folderPath, file)).isFile());
+
+            for(let file of fileList){
+                if(file.split("&&d&&")[0] == req.session.userEmail
+                && file.split("&&d&&")[2] == filedir
+                && file.split("&&d&&")[3] == filename){
+                    foundPDF = file;
+                    console.log(foundPDF)
+                    break;
+                }
+            }
+
+            res.render(req.app.get('baseUrl') + 'file', { "fs": currentDirectory, "urlPath":urlPath, "pdfName":foundPDF});
+        });
+    });
+
+    // Route to handle login form submission
+    app.post('/message', (req, res) => {
+        console.log("here")
+
+        console.log(req.body)
+        invokePythonQuestionProcessor(req, res);
     });
 
     // Route for the login page
@@ -390,7 +431,7 @@ module.exports = function(app, renderData) {
     });
 
     // Callback function that handles requests to the '/python' endpoint
-    function invokePythonMoroccanTranslator(req, res) {
+    function invokePythonDocumentProcessor(req, res) {
         console.log("Spawning Python process");
         var process = spawn('python3', ["doc_processing.py", req.file.filename.replace(".pdf", "")]); // Assuming you're passing text query parameter
 
@@ -405,6 +446,68 @@ module.exports = function(app, renderData) {
         process.on('close', (code) => {
             if (code !== 0) {
                 console.error(`Process exited with code: ${code}`);
+            }
+            else{invokePythonSummaryProcessor(req, res);}
+        });
+    };
+
+    // Callback function that handles requests to the '/python' endpoint
+    function invokePythonSummaryProcessor(req, res) {
+        var summary;
+        console.log("Spawning Python process");
+        var process = spawn('python3', ["summary_processing.py", req.file.filename.replace(".pdf", "")]); // Assuming you're passing text query parameter
+
+        process.stdout.on('data', (data) => {
+            console.log(data.toString());
+            summary = data.toString().replace("PaLM Predicted: ", "");
+        });
+
+        process.stderr.on('data', (data) => {
+            console.error(`stderr: ${data}`);
+        });
+
+        process.on('close', (code) => {
+            if (code !== 0) {
+                console.error(`Process exited with code: ${code}`);
+            }
+            else {
+                const filename = req.file.filename.replace(".pdf", "");
+                const userEmail = req.session.userEmail;
+
+                const query = `
+                    UPDATE documents
+                    SET summary = ?
+                    WHERE file_name LIKE ? AND email = ?
+                `;
+                db.query(query, [summary, `%${filename}%`, userEmail], (error, results) => {
+                    if (error) {
+                        console.error(`Error updating summary in database: ${error}`);
+                    } else {
+                        console.log("Summary updated successfully in the database.");
+                    }
+                });
+            }
+        });
+    };
+
+    function invokePythonQuestionProcessor(req, res) {
+        console.log("Chat context: \n"+req.body.history+"\n Current Question: "+req.body.message)
+        console.log("Spawning Python process");
+        var process = spawn('python3', ["question_processing.py", req.body.filename.replace(".pdf", ""), "Chat context: \n"+req.body.history+"\n Current Question: "+req.body.message]); // Assuming you're passing text query parameter
+
+        process.stdout.on('data', (data) => {
+            console.log(data.toString());
+            res.send({message:data.toString()});
+        });
+
+        process.stderr.on('data', (data) => {
+            console.error(`stderr: ${data}`);
+        });
+
+        process.on('close', (code) => {
+            if (code !== 0) {
+                console.error(`Process exited with code: ${code}`);
+                res.send({message:"failed to generate a response at this moment"});
             }
         });
     };

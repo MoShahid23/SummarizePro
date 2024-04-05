@@ -47,11 +47,41 @@
                     <img src="/images/back.png" alt="">
                 </button>
                 <input type="text" readonly value="/home/<%=urlPath%>">
-                <button class="delete">delete</button>
+                <button class="delete">Delete</button>
             </div>
             <!-- File explorer area -->
-            <div class="file-explorer">
-               
+            <div class="interact">
+                <div class="view-container">
+                    <iframe src="/uploads/<%=pdfName%>?filename=<%=pdfName%>" title="Embedded PDF" resizable></iframe>
+                    <div class="quiz-view"></div>
+                </div>
+                <div class="chat-container">
+                    <div class="messages">
+                        <div class="message greeting">
+                            Hello! I am here to help consolidate your learning. <br>Let me start by generating a summary for "<%= urlPath.split("/").pop() %>":<br>
+                            assalamualaikum brother
+                        </div>
+                        <div class="message question">
+                            bruh?
+                        </div>
+                        <div class="message answer">
+                            bruh
+                        </div>
+                        <div class="message question">
+                            bruh2?
+                        </div>
+                        <div class="message answer">
+                            bruh2
+                        </div>
+                    </div>
+                    <div class="chat-interact">
+                        <form method="POST">
+                            <input name="message" type="text">
+                            <input hidden name="filename" type="text" value="<%=pdfName%>">
+                            <button type="submit">send</button>
+                        </form>
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -60,5 +90,69 @@
     </div>
 </body>
 
-<script src="/js/home.js"></script>
+<script>
+    function navigateToUrl(url) {
+        console.log(url)
+        window.location.href = url;
+    }
+
+    document.addEventListener("DOMContentLoaded", function() {
+        // Get the form element
+        var form = document.querySelector(".chat-container form");
+
+        // Add event listener for form submission
+        form.addEventListener("submit", function(event) {
+            // Prevent the default form submission
+            event.preventDefault();
+
+            // Gather form data
+            var formData = new FormData(form);
+            let historiesEl = document.querySelectorAll(".chat-container .message");
+            let histories = [];
+
+            for(let history of historiesEl){
+                if(!history.classList.contains("greeting")){
+                    if(history.classList.contains("question")){
+                        histories.push("Question: "+history.innerText);
+                    }else{
+                        histories.push("Answer: "+history.innerText);
+                    }
+                }
+            }
+
+            if(histories.length>5){
+                histories.reverse().splice(6, histories.length);
+                histories.reverse();
+            }
+
+            document.querySelector(".chat-container .messages").innerHTML += `<div class='message question'>${formData.get("message")}</div>`
+
+            // Make a POST request
+            fetch("/message", {
+                "method": "POST",
+                "headers": {
+                'Accept': 'application/json',
+                'Content-Type': 'application/json'
+                },
+                "body": JSON.stringify({question:formData.get("message"), filename:formData.get("filename"), history:histories.join("\n")})
+            })
+            .then(response => {
+                // Handle response
+                if (response.ok) {
+                    return response.json(); // Parse response body as JSON
+                }
+                throw new Error("Network response was not ok.");
+            })
+            .then(data => {
+                // Handle successful response
+                document.querySelector(".chat-container .messages").innerHTML += `<div class='message question'>${data.message}</div>`
+            })
+            .catch(error => {
+                // Handle errors
+                console.error("There was a problem with the request:", error);
+            });
+        });
+    });
+
+</script>
 </html>

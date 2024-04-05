@@ -24,5 +24,7 @@ CREATE TABLE IF NOT EXISTS documents (
     email VARCHAR(255) NOT NULL,
     file_name VARCHAR(255) NOT NULL,
     file_path VARCHAR(255) NOT NULL,
+    summary TEXT,
+    quizzes TEXt,
     FOREIGN KEY (email) REFERENCES users(email)
 );

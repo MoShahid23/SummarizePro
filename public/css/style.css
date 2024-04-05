@@ -4,6 +4,7 @@ body {
     padding: 0;
     font-family: 'monospace', sans-serif;
     background: #f4f4f4;
+    overflow: hidden;
 }
 
 #app {
@@ -389,6 +390,9 @@ nav ul li a:hover {
     text-align: center;
     margin-left: auto;
     background-color:#dd4b39;
+
+    background-repeat: no-repeat;
+    background-position: 50%;
     width: 8%;
     border-radius: 10px;
     -webkit-border-radius: 10px;
@@ -398,10 +402,19 @@ nav ul li a:hover {
 }
 
 .file-explorer {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    max-height: 60vh;
+    overflow-y: auto; /* Enable vertical scrolling */
+    display: flex;
+    flex-wrap: wrap;
     gap: 20px;
     padding: 20px;
+}
+
+.file-explorer > * {
+    flex: 0 0 calc((100% - 140px) / 8); /* Adjust the number of items per row as needed */
+    max-width: calc((100% - 140px) / 8);
+    min-width: 140px; /* Minimum width for each item */
+    margin-bottom: 20px;
 }
 
 .folder,
@@ -525,6 +538,69 @@ nav ul li a:hover {
 
 }
 
+.interact{
+    width: 80%;
+    height: 100%;
+}
+
+.interact .view-container{
+    padding-top: 10px;
+    width: 100%;
+    height: 50%
+}
+
+.interact iframe {
+    display: inline-block;
+    width: 59.5%;
+    height: 100%; /* Adjust the height as needed */
+    border: none; /* Remove iframe border */
+}
+
+.interact .quiz-view{
+    display: inline-block;
+    background-color: #111;
+    width: 39.5%;
+    height: 100%;
+    border: none;
+}
+
+.chat-container {
+    display: grid;
+    grid-template-columns: 1fr;
+    grid-template-rows: 1fr auto;
+    height: 45vh;
+    width: 100%;
+}
+
+.chat-container .messages {
+    overflow-y: auto;
+    padding: 10px;
+}
+
+.chat-container .message{
+    padding: 15px;
+    border-radius: 10px;
+    -webkit-border-radius: 10px;
+    -moz-border-radius: 10px;
+    -ms-border-radius: 10px;
+    -o-border-radius: 10px;
+}
+.chat-container .message.greeting{
+    background-color: #333;
+    color: white;
+}
+.chat-container .message.question{
+    background-color: #555;
+    color: white;
+}
+.chat-container .message.answer{
+    background-color: #777;
+    color: black;
+}
+
+.chat-container .chat-interact {
+    padding: 10px;
+}
 
 /* Styles for the login page */
 .login-wrapper {
@@ -534,7 +610,7 @@ nav ul li a:hover {
 
 .login-branding {
     flex: 1;
-    background: #333; 
+    background: #333;
     color: white;
     display: flex;
     flex-direction: column;

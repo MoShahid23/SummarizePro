@@ -70,7 +70,7 @@ document.querySelector(".uploadDialogue form").addEventListener('submit', functi
         }
     }, 5000)
 });
-
+console.log(document.querySelector("#main-content > div.traversal-detail > input[type=text]").value)
 
 // Function to check processing status and update icon if needed
 function checkProcessingStatus() {
@@ -79,9 +79,10 @@ function checkProcessingStatus() {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                filename:document.querySelector(".processing").parentNode.innerText
             },
-            body: {}
+            body: JSON.stringify({
+                "filename": "&&d&&" + document.querySelector("#main-content > div.traversal-detail > input[type=text]").value.replace("/home/", "") + "&&d&&" + document.querySelector(".processing").parentNode.innerText
+            })
         })
         .then(response => response.json())
         .then(data => {

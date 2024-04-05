@@ -24,6 +24,7 @@ app.use(session({
 
 // Middleware to parse the request body for form submissions
 app.use(express.urlencoded({ extended: true }));
+app.use(express.json());
 
 // MySQL connection configuration
 const dbConnection = mysql.createConnection({
@@ -42,9 +43,21 @@ dbConnection.connect((err) => {
 });
 global.db = dbConnection;
 
+//quick check to see if session should be able to access file
+function isAuthorized(req, res, next) {
+    const requestedFile = req.originalUrl; // Extract filename from request parameters
+    const userEmail = req.session.userEmail; // Assuming user email is stored in req.user after authentication
+    // Check if the requested file belongs to the authenticated user
+    // You'll need to implement your own logic to determine ownership
+    if (requestedFile.includes(userEmail)) {
+        return next(); // User is authorized, continue
+    }
+    res.status(403).send('Unauthorized'); // Send 403 Forbidden if user is not authorized
+};
 
 // Middleware to serve static files from the 'public' directory
 app.use(express.static(path.join(__dirname, 'public')));
+app.use('/uploads', isAuthorized, express.static(path.join(__dirname, 'uploads')));
 
 // Set the 'views' directory and EJS as the templating engine
 app.set('view engine', 'ejs');

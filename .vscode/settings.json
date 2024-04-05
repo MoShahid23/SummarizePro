@@ -3,6 +3,7 @@
         "aiplatform",
         "docai",
         "documentai",
+        "filedir",
         "gcloud",
         "googleapis",
         "gsutil",
