@@ -11,14 +11,22 @@ question = sys.argv[2]
 
 pdf_data_sample = pd.read_pickle(f'embeddings/{file}.pkl')
 
-generation_model = TextGenerationModel.from_pretrained("text-bison@001")
-embedding_model = TextEmbeddingModel.from_pretrained("textembedding-gecko@001")
+generation_model = TextGenerationModel.from_pretrained("text-bison")
+embedding_model = TextEmbeddingModel.from_pretrained("textembedding-gecko")
+
+parameters = {
+    "temperature": 1.0,  # Set temperature to 1.0 for moderate randomness in token selection
+    "max_output_tokens": 2048,
+    "top_p": 0.8,  # Use top-p sampling with a value of 0.8 for diversity in token selection
+    "top_k": 40  # Set top-k to 40 for a balanced selection of tokens
+}
 
 # This decorator is used to handle exceptions and apply exponential backoff in case of ResourceExhausted errors.
 # It means the function will be retried with increasing time intervals in case of this specific exception.
 @retry(wait=wait_random_exponential(min=1, max=60), stop=stop_after_attempt(5))
-def text_generation_model_with_backoff(**kwargs):
-    return generation_model.predict(**kwargs).text
+def text_generation_model_with_backoff(prompt):
+    return generation_model.predict(prompt, **parameters).text
+
 
 @retry(wait=wait_random_exponential(min=10, max=120), stop=stop_after_attempt(5))
 def embedding_model_with_backoff(text=[]):
@@ -49,12 +57,14 @@ context, top_matched_df = get_context_from_question(
 top_matched_df
 
 # Prompt for Q&A which takes the custom context found in last step.
-prompt = f"""Be friendly and answer like a teacher.
-             Answer each question to the best of your ability.\n\n
-            Context: \n {context}?\n
-            Question: \n {question} \n
-            Answer:
-          """
-
+prompt = f"""
+          Your name is "SumPro", a friendly, and concise chatbot.\n
+          Please format your response using HTML tags (assume it is inside of a div) for better readability.\n
+          If prompt does not make sense, let it be known in response.
+          Refer to chat history for more context if needed.\n
+          Context: \n {context}?\n
+          {question} \n
+          Response:
+        """
 # Call the PaLM API on the prompt.
-print("PaLM Predicted:", text_generation_model_with_backoff(prompt=prompt), "\n\n")
+print(text_generation_model_with_backoff(prompt).replace("```html", "").replace("```", ""))

@@ -8,39 +8,7 @@
 </head>
 <body>
     <div id="app">
-        <div id="sidebar">
-            <a href="/home/" id="logo">
-                <img src="/images/logo.png" alt="SummarizePro Logo">
-            </a>
-            <nav>
-                <ul>
-                    <li>
-                        <a href="/" class="link home-sidebar">
-                            <img src="/images/home.png" alt="home icon">
-                            home
-                        </a>
-                        <span>
-                            <% if(urlPath.split("/").slice(0, -1).pop() !== undefined) { %>.../<%}%><%= urlPath.split("/").slice(0, -1).pop() %>/
-                        </span>
-                    </li>
-
-                    <% for(let path in fs) { %>
-                        <li>
-                            <a onclick="navigateToUrl('/home/<%= (urlPath.split('/').slice(0, -1).pop() ? urlPath.split('/').slice(0, -1).pop() : ``) + '/' + path %>')" class="link"><%= path %>/</a>
-                        </li>
-                    <% } %>
-                </ul>
-            </nav>
-            <div id="profile" class="profile-bottom">
-                <button class="dropdown-btn"><img src="/images/email.png" alt="email icon">blah@gmail.com</button>
-                <div class="dropdown-menu">
-                    <a onclick="location.href='/logout'"><img src="/images/key.png" alt="key icon"><span>&nbsp;Change password</span></a>
-                    <a onclick="location.href='/logout'"><img src="/images/logout.png" alt="logout icon"><span>&nbsp;Logout</span></a>
-                </div>
-            </div>
-        </div>
-
-        <div id="main-content">
+        <div id="main-content" class="main-content-file">
             <!-- file info area -->
             <div class="traversal-detail file-page">
                 <button onclick="navigateToUrl('/home/' + '<%= urlPath %>'.split('/').slice(0, -1).join('/'))">
@@ -58,30 +26,23 @@
                 <div class="chat-container">
                     <div class="messages">
                         <div class="message greeting">
-                            Hello! I am here to help consolidate your learning. <br>Let me start by generating a summary for "<%= urlPath.split("/").pop() %>":<br>
-                            assalamualaikum brother
-                        </div>
-                        <div class="message question">
-                            bruh?
-                        </div>
-                        <div class="message answer">
-                            bruh
-                        </div>
-                        <div class="message question">
-                            bruh2?
-                        </div>
-                        <div class="message answer">
-                            bruh2
+                            <div class="message-header"><img src="/images/answer-chat.png" alt="answer chat icon"> Summarize Pro:</div>
+                            <div class="message-body">Hello! I am here to help consolidate your learning. <br>Let me start by generating a summary for "<%= urlPath.split("/").pop() %>":<br><br>
+                                <%- summary %>
+                            </div>
                         </div>
                     </div>
                     <div class="chat-interact">
                         <form method="POST">
-                            <input name="message" type="text">
+                            <input name="message" type="text" placeholder="Type here to chat..." required>
                             <input hidden name="filename" type="text" value="<%=pdfName%>">
-                            <button type="submit">send</button>
+                            <button type="submit"><img src="/images/send.png" alt="send icon"></button>
                         </form>
                     </div>
                 </div>
+            </div>
+            <div class="right-sidebar">
+
             </div>
         </div>
 
@@ -90,69 +51,5 @@
     </div>
 </body>
 
-<script>
-    function navigateToUrl(url) {
-        console.log(url)
-        window.location.href = url;
-    }
-
-    document.addEventListener("DOMContentLoaded", function() {
-        // Get the form element
-        var form = document.querySelector(".chat-container form");
-
-        // Add event listener for form submission
-        form.addEventListener("submit", function(event) {
-            // Prevent the default form submission
-            event.preventDefault();
-
-            // Gather form data
-            var formData = new FormData(form);
-            let historiesEl = document.querySelectorAll(".chat-container .message");
-            let histories = [];
-
-            for(let history of historiesEl){
-                if(!history.classList.contains("greeting")){
-                    if(history.classList.contains("question")){
-                        histories.push("Question: "+history.innerText);
-                    }else{
-                        histories.push("Answer: "+history.innerText);
-                    }
-                }
-            }
-
-            if(histories.length>5){
-                histories.reverse().splice(6, histories.length);
-                histories.reverse();
-            }
-
-            document.querySelector(".chat-container .messages").innerHTML += `<div class='message question'>${formData.get("message")}</div>`
-
-            // Make a POST request
-            fetch("/message", {
-                "method": "POST",
-                "headers": {
-                'Accept': 'application/json',
-                'Content-Type': 'application/json'
-                },
-                "body": JSON.stringify({question:formData.get("message"), filename:formData.get("filename"), history:histories.join("\n")})
-            })
-            .then(response => {
-                // Handle response
-                if (response.ok) {
-                    return response.json(); // Parse response body as JSON
-                }
-                throw new Error("Network response was not ok.");
-            })
-            .then(data => {
-                // Handle successful response
-                document.querySelector(".chat-container .messages").innerHTML += `<div class='message question'>${data.message}</div>`
-            })
-            .catch(error => {
-                // Handle errors
-                console.error("There was a problem with the request:", error);
-            });
-        });
-    });
-
-</script>
+<script src="/js/file.js"></script>
 </html>

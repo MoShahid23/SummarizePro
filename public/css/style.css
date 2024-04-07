@@ -1,10 +1,12 @@
+html{
+    background-color: #222;
+}
 
 body {
     margin: 0;
     padding: 0;
     font-family: 'monospace', sans-serif;
     background: #f4f4f4;
-    overflow: hidden;
 }
 
 #app {
@@ -402,12 +404,18 @@ nav ul li a:hover {
 }
 
 .file-explorer {
-    max-height: 60vh;
-    overflow-y: auto; /* Enable vertical scrolling */
+    max-height: 62vh;
+    overflow-y: auto;
     display: flex;
     flex-wrap: wrap;
     gap: 20px;
     padding: 20px;
+    outline: 2px solid #333;
+    border-radius: 10px;
+    -webkit-border-radius: 10px;
+    -moz-border-radius: 10px;
+    -ms-border-radius: 10px;
+    -o-border-radius: 10px;
 }
 
 .file-explorer > * {
@@ -538,38 +546,74 @@ nav ul li a:hover {
 
 }
 
+.main-content-file{
+    background-color: #222;
+    display: block!important;
+    min-width: 890px;
+}
+
 .interact{
     width: 80%;
-    height: 100%;
+    height: calc(100% - 20px);
+    display: inline-block;
 }
 
 .interact .view-container{
     padding-top: 10px;
     width: 100%;
-    height: 50%
+    height: 49%;
+    min-height: 261px;
+    min-width: 708px;
+    margin-bottom: 1%;
 }
 
 .interact iframe {
     display: inline-block;
     width: 59.5%;
-    height: 100%; /* Adjust the height as needed */
-    border: none; /* Remove iframe border */
+    height: 100%;
+    border: none;
+    outline: white 1px solid;
+    margin-right: 1%;
+
+    border-radius: 10px;
+    -webkit-border-radius: 10px;
+    -moz-border-radius: 10px;
+    -ms-border-radius: 10px;
+    -o-border-radius: 10px;
 }
 
 .interact .quiz-view{
     display: inline-block;
     background-color: #111;
-    width: 39.5%;
+    width: 38.5%;
     height: 100%;
     border: none;
+    outline: white 1px solid;
+
+    border-radius: 10px;
+    -webkit-border-radius: 10px;
+    -moz-border-radius: 10px;
+    -ms-border-radius: 10px;
+    -o-border-radius: 10px;
 }
 
 .chat-container {
     display: grid;
     grid-template-columns: 1fr;
     grid-template-rows: 1fr auto;
-    height: 45vh;
+    height: 43vh;
     width: 100%;
+    min-height: 261px;
+    min-width: 708px;
+    background-color: #333;
+    outline: white 1px solid;
+
+    border: 2px solid black;
+    border-radius: 10px;
+    -webkit-border-radius: 10px;
+    -moz-border-radius: 10px;
+    -ms-border-radius: 10px;
+    -o-border-radius: 10px;
 }
 
 .chat-container .messages {
@@ -579,14 +623,40 @@ nav ul li a:hover {
 
 .chat-container .message{
     padding: 15px;
+    border: 1px solid white;
     border-radius: 10px;
     -webkit-border-radius: 10px;
     -moz-border-radius: 10px;
     -ms-border-radius: 10px;
     -o-border-radius: 10px;
 }
+
+@keyframes message-added {
+    0% { transform: scale(0); -webkit-transform: scale(0); -moz-transform: scale(0); -ms-transform: scale(0); -o-transform: scale(0); }
+    100% { transform: scale(1); -webkit-transform: scale(1); -moz-transform: scale(1); -ms-transform: scale(1); -o-transform: scale(1); }
+}
+
+.chat-container .message.animated{
+    animation: forwards message-added 0.8s;
+    -webkit-animation: forwards message-added 0.8s;
+}
+
+.chat-container .message .message-header{
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    padding-bottom: 10px
+}
+.chat-container .message .message-header img{
+    height: 25px;
+    padding-right: 10px
+}
+
+.chat-container .message .message-body{
+    margin-left: 35px;
+}
 .chat-container .message.greeting{
-    background-color: #333;
+    background-color: #222;
     color: white;
 }
 .chat-container .message.question{
@@ -594,12 +664,109 @@ nav ul li a:hover {
     color: white;
 }
 .chat-container .message.answer{
-    background-color: #777;
-    color: black;
+    background-color: #333;
+    color: white;
 }
 
 .chat-container .chat-interact {
-    padding: 10px;
+    width: 100%;
+    background-color: #444;
+    display: block;
+    flex-direction: row;
+    padding: 0 0 5px 0;
+
+    border-radius: 10px;
+    -webkit-border-radius: 10px;
+    -moz-border-radius: 10px;
+    -ms-border-radius: 10px;
+    -o-border-radius: 10px;
+}
+
+.chat-container .chat-interact  form{
+    display: block;
+    width: 100%;
+    text-align-last: center;
+
+    outline: 1px solid #999;
+    border-radius: 10px;
+    -webkit-border-radius: 10px;
+    -moz-border-radius: 10px;
+    -ms-border-radius: 10px;
+    -o-border-radius: 10px;
+}
+
+.chat-container .chat-interact input{
+    font-size: 16px;
+    color: white;
+    padding: 15px;
+    width: 90%;
+    border: none;
+    background-color: transparent;
+    text-align-last: left;
+}
+
+.chat-container .chat-interact input:focus{
+    outline: none;
+}
+
+.chat-container .chat-interact form:focus-within {
+    /* Change border color when any input within the form is focused */
+    outline-color: white;
+}
+
+.chat-container .chat-interact button{
+    display: inline-block;
+    width: 5%;
+    padding: 15px;
+    border: none;
+    margin: auto;
+    background-color: transparent;
+    text-align-last: center;
+
+
+    border-radius: 10px;
+    -webkit-border-radius: 10px;
+    -moz-border-radius: 10px;
+    -ms-border-radius: 10px;
+    -o-border-radius: 10px;
+
+    transition: all 0.5s;
+    -webkit-transition: all 0.5s;
+    -moz-transition: all 0.5s;
+    -ms-transition: all 0.5s;
+    -o-transition: all 0.5s;
+}
+
+.chat-container .chat-interact button:hover{
+    transition: all 0.5s;
+    transform: scale(1.5);
+    -webkit-transform: scale(1.5);
+    -moz-transform: scale(1.5);
+    -ms-transform: scale(1.5);
+    -o-transform: scale(1.5);
+    -webkit-transition: all 0.5s;
+    -moz-transition: all 0.5s;
+    -ms-transition: all 0.5s;
+    -o-transition: all 0.5s;
+}
+
+.chat-container .chat-interact button img{
+    width: 90%;
+}
+
+.right-sidebar{
+    display: inline-block;
+    vertical-align: top;
+    margin-top: 10px;
+    margin-left: 0.5%;
+    width: 19%;
+    height: calc(100% - 50px);
+    background-color: rebeccapurple;
+    border-radius: 10px;
+    -webkit-border-radius: 10px;
+    -moz-border-radius: 10px;
+    -ms-border-radius: 10px;
+    -o-border-radius: 10px;
 }
 
 /* Styles for the login page */

@@ -271,7 +271,14 @@ module.exports = function(app, renderData) {
                 }
             }
 
-            res.render(req.app.get('baseUrl') + 'file', { "fs": currentDirectory, "urlPath":urlPath, "pdfName":foundPDF});
+            let query = "SELECT summary FROM documents WHERE file_name = ?";
+            db.query(query, [foundPDF], (error, results) => {
+                if (error) {
+                    res.send("Please try again later...");
+                } else {
+                    res.render(req.app.get('baseUrl') + 'file', { "fs": currentDirectory, "urlPath":urlPath, "pdfName":foundPDF, "summary":results[0].summary});
+                }
+            })
         });
     });
 
@@ -459,7 +466,7 @@ module.exports = function(app, renderData) {
 
         process.stdout.on('data', (data) => {
             console.log(data.toString());
-            summary = data.toString().replace("PaLM Predicted: ", "");
+            summary = data.toString();
         });
 
         process.stderr.on('data', (data) => {
@@ -491,13 +498,14 @@ module.exports = function(app, renderData) {
     };
 
     function invokePythonQuestionProcessor(req, res) {
-        console.log("Chat context: \n"+req.body.history+"\n Current Question: "+req.body.message)
+        console.log(req.body.complete_history);
+        console.log("Chat context: \n"+req.body.contextual_history+"\n Current Question: "+req.body.question)
         console.log("Spawning Python process");
-        var process = spawn('python3', ["question_processing.py", req.body.filename.replace(".pdf", ""), "Chat context: \n"+req.body.history+"\n Current Question: "+req.body.message]); // Assuming you're passing text query parameter
-
+        var process = spawn('python3', ["question_processing.py", req.body.filename.replace(".pdf", ""), `Chat History:\n${req.body.contextual_history}\nPrompt:\n${req.body.question}`]); // Assuming you're passing text query parameter
+        let response = "";
         process.stdout.on('data', (data) => {
             console.log(data.toString());
-            res.send({message:data.toString()});
+            response = data.toString();
         });
 
         process.stderr.on('data', (data) => {
@@ -508,6 +516,9 @@ module.exports = function(app, renderData) {
             if (code !== 0) {
                 console.error(`Process exited with code: ${code}`);
                 res.send({message:"failed to generate a response at this moment"});
+            }
+            else{
+                res.send({message:response});
             }
         });
     };

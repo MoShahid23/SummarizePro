@@ -218,7 +218,7 @@ pdf_data_sample.head()
 print("The original dataframe has :", pdf_data.shape[0], " rows without chunking")
 print("The chunked dataframe has :", pdf_data_sample.shape[0], " rows with chunking")
 
-embedding_model = TextEmbeddingModel.from_pretrained("textembedding-gecko@001")
+embedding_model = TextEmbeddingModel.from_pretrained("textembedding-gecko")
 
 # This decorator is used to handle exceptions and apply exponential backoff in case of ResourceExhausted errors.
 # It means the function will be retried with increasing time intervals in case of this specific exception.
