@@ -553,6 +553,8 @@ nav ul li a:hover {
 }
 
 .interact{
+    max-width: 80%;
+    max-height: calc(100% - 20px);
     width: 80%;
     height: calc(100% - 20px);
     display: inline-block;
@@ -590,12 +592,27 @@ nav ul li a:hover {
     border: none;
     outline: white 1px solid;
     vertical-align: top;
+    overflow: scroll;
 
     border-radius: 10px;
     -webkit-border-radius: 10px;
     -moz-border-radius: 10px;
     -ms-border-radius: 10px;
     -o-border-radius: 10px;
+}
+
+.interact .quiz-view .loading-text{
+    text-align: center;
+    color: white;
+    width: fit-content;
+    margin: 0 auto;
+    font-size: 25px;
+}
+.interact .quiz-view .loading{
+    display: block;
+    width: 50%;
+    margin: 0 auto;
+    margin-top: 20px;
 }
 
 .interact .quiz-view .make-quiz-title{
@@ -720,6 +737,82 @@ nav ul li a:hover {
     -moz-transition: 0.3s all;
     -ms-transition: 0.3s all;
     -o-transition: 0.3s all;
+}
+.interact .quiz-view .do-quiz{
+    display: flex;
+    padding: 10px;
+    flex-direction: column;
+    gap: 30px;
+}
+.interact .quiz-view .do-quiz .field{
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    height: 10%;
+    gap: 10px;
+}
+.interact .quiz-view .do-quiz .question-number{
+    padding: 10px;
+    width: fit-content;
+    background-color: #111;
+    color: white;
+    border-radius: 10px;
+    -webkit-border-radius: 10px;
+    -moz-border-radius: 10px;
+    -ms-border-radius: 10px;
+    -o-border-radius: 10px;
+}
+.interact .quiz-view .do-quiz .question{
+    margin-left: 20px;
+    width: fit-content;
+    color: white;
+}
+.interact .quiz-view .do-quiz .answer-select{
+    padding: 10px;
+    width: calc(100% - 100px);
+    margin-left: 40px;
+    background-color: #111;
+    color: white;
+
+    border-radius: 10px;
+    -webkit-border-radius: 10px;
+    -moz-border-radius: 10px;
+    -ms-border-radius: 10px;
+    -o-border-radius: 10px;
+
+    transition: all 0.3s;
+    -webkit-transition: all 0.3s;
+    -moz-transition: all 0.3s;
+    -ms-transition: all 0.3s;
+    -o-transition: all 0.3s;
+}
+
+.interact .quiz-view .do-quiz .answer-select:hover{
+    transform: scale(1.1);
+    -webkit-transform: scale(1.1);
+    -moz-transform: scale(1.1);
+    -ms-transform: scale(1.1);
+    -o-transform: scale(1.1);
+
+    transition: all 0.3s;
+    -webkit-transition: all 0.3s;
+    -moz-transition: all 0.3s;
+    -ms-transition: all 0.3s;
+    -o-transition: all 0.3s;
+}
+
+.interact .quiz-view .do-quiz input[type="radio"]:checked + .answer-select{
+    background-color: #666;
+    transform: scale(0.9);
+    -webkit-transform: scale(0.9);
+    -moz-transform: scale(0.9);
+    -ms-transform: scale(0.9);
+    -o-transform: scale(0.9);
+    transition: all 0.3s;
+    -webkit-transition: all 0.3s;
+    -moz-transition: all 0.3s;
+    -ms-transition: all 0.3s;
+    -o-transition: all 0.3s;
 }
 
 .chat-container {

@@ -1,3 +1,7 @@
+setInterval(function(){
+    document.querySelector(".view-container").setAttribute("style", `max-height:${document.querySelector(".quiz-view").clientHeight}px;`)
+}, 100)
+
 
 
 function navigateToUrl(url) {
@@ -19,33 +23,107 @@ function createQuiz(event){
         return;
     }
 
-    fetch("/create_quiz", {
-        "method": "POST",
-        "headers": {
-        'Accept': 'application/json',
-        'Content-Type': 'application/json'
+    document.querySelector(".quiz-view").innerHTML = `
+        <img class="loading" src="/images/quiz-loading.gif" alt="loading gif">
+        <div class="loading-text">Creating the quiz!</div>
+    `
+
+    // fetch("/create_quiz", {
+    //     "method": "POST",
+    //     "headers": {
+    //     'Accept': 'application/json',
+    //     'Content-Type': 'application/json'
+    //     },
+    //     "body": JSON.stringify({"filename":event.srcElement["filename"].value, "numberOfQuestions":event.srcElement["option"].value})
+    // })
+    // .then(response => {
+    //     if (response.ok) {
+    //         return response.json(); // Parse response body as JSON
+    //     }
+    //     throw new Error("Network response was not ok.");
+    // })
+    // .then(data => {
+    //     for(part in data){
+    //         console.log(data[part]["Q"])
+    //         console.log("          A: "+data[part]["A"])
+    //         console.log("          B: "+data[part]["B"])
+    //         console.log("          C: "+data[part]["C"]);
+    //         console.log("          D: "+data[part]["D"])
+    //     }
+    // })
+    // .catch(error => {
+    //     // Handle errors
+    //     console.error("There was a problem with the request:", error);
+    // });
+    let jason = JSON.parse(`
+    {
+        "Q1": {
+         "Q": "Who was Lennie instructed to hide from?",
+         "A": "George",
+         "B": "Curley",
+         "C": "Candy",
+         "D": "Slim",
+         "CA": "B"
         },
-        "body": JSON.stringify({"filename":event.srcElement["filename"].value, "numberOfQuestions":event.srcElement["option"].value})
-    })
-    .then(response => {
-        if (response.ok) {
-            return response.json(); // Parse response body as JSON
+        "Q2": {
+         "Q": "What physical feature did Curley's wife have?",
+         "A": "Red hair",
+         "B": "Large eyes",
+         "C": "Full lips",
+         "D": "Long fingernails",
+         "CA": "D"
+        },
+        "Q3": {
+         "Q": "What advice did George give Lennie about Curley's wife?",
+         "A": "Don't speak to her",
+         "B": "Don't look at her",
+         "C": "Don't touch her",
+         "D": "All of the above",
+         "CA": "D"
+        },
+        "Q4": {
+         "Q": "What did Lennie find by the river?",
+         "A": "A dead bird",
+         "B": "A water snake",
+         "C": "A mouse",
+         "D": "A Luger",
+         "CA": "C"
+        },
+        "Q5": {
+         "Q": "Who did Curley suspect of stealing his Luger?",
+         "A": "Lennie",
+         "B": "Candy",
+         "C": "George",
+         "D": "Slim",
+         "CA": "A"
         }
-        throw new Error("Network response was not ok.");
-    })
-    .then(data => {
-        for(part in data){
-            console.log(data[part]["Q"])
-            console.log("          A: "+data[part]["A"])
-            console.log("          B: "+data[part]["B"])
-            console.log("          C: "+data[part]["C"]);
-            console.log("          D: "+data[part]["D"])
-        }
-    })
-    .catch(error => {
-        // Handle errors
-        console.error("There was a problem with the request:", error);
-    });
+    }
+    `)
+
+    let newHTML = ""
+    newHTML = "<form onsubmit='markQuiz(event)' class='do-quiz'>"
+    for(let part in jason){
+        newHTML += `
+            <div class="field">
+                <div class='question-number'>${part}</div>
+                <div class='question'>${jason[part]["Q"]}</div>
+
+                <input name="${part}-answer" type="radio" id="${part}-A" value="A" hidden>
+                <label class="answer-select" for="${part}-A">${jason[part]["A"]}</label>
+
+                <input name="${part}-answer" type="radio" id="${part}-B" value="B" hidden>
+                <label class="answer-select" for="${part}-B">${jason[part]["B"]}</label>
+
+                <input name="${part}-answer" type="radio" id="${part}-C" value="C" hidden>
+                <label class="answer-select" for="${part}-C">${jason[part]["C"]}</label>
+
+                <input name="${part}-answer" type="radio" id="${part}-D" value="D" hidden>
+                <label class="answer-select" for="${part}-D">${jason[part]["D"]}</label>
+            </div>
+        `
+    }
+    document.querySelector(".quiz-view").innerHTML = newHTML+"</form>"
+
 }
 
 document.querySelector("#main-content > div.interact > div.chat-container > div.chat-interact > form").addEventListener("click", function(){
