@@ -25,6 +25,13 @@ CREATE TABLE IF NOT EXISTS documents (
     file_name VARCHAR(255) NOT NULL,
     file_path VARCHAR(255) NOT NULL,
     summary TEXT,
-    quizzes TEXt,
     FOREIGN KEY (email) REFERENCES users(email)
+);
+
+CREATE TABLE IF NOT EXISTS quizzes (
+    id INT,
+    created TIMESTAMP,
+    quiz TEXT,
+    marked BOOLEAN,
+    FOREIGN KEY (id) REFERENCES documents(id)
 );

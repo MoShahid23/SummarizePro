@@ -112,7 +112,6 @@ module.exports = function(app, renderData) {
 
     });
 
-
     app.get('/', isAuthenticated, (req, res) => {
         res.redirect("/home");
     });
@@ -290,6 +289,27 @@ module.exports = function(app, renderData) {
         invokePythonQuestionProcessor(req, res);
     });
 
+    app.post('/create_quiz', isAuthenticated, (req, res) => {
+        let query = `
+            SELECT q.*
+            FROM quizzes q
+            JOIN documents d ON q.id = d.id
+            WHERE q.marked = FALSE
+            AND d.file_name = ?
+        `;
+        global.db.query(query, [req.body.filename], (error, results) => {
+            if (error) {
+                console.error('Error getting quiz status from quizzes table', error);
+                return res.status(500).send('Internal Server Error');
+            }
+            console.log(results);
+            if(results.length == 0){
+                invokePythonMultiChoiceQuestionProcessor(req, res);
+            }
+
+        });
+    });
+
     // Route for the login page
     app.get('/login', (req, res) => {
         //redirect to home if logged in already
@@ -455,6 +475,33 @@ module.exports = function(app, renderData) {
                 console.error(`Process exited with code: ${code}`);
             }
             else{invokePythonSummaryProcessor(req, res);}
+        });
+    };
+
+    // Callback function that handles requests to the '/python' endpoint
+    function invokePythonMultiChoiceQuestionProcessor(req, res) {
+        var quiz;
+        console.log("Spawning Python process");
+        console.log(req.body.numberOfQuestions)
+        var process = spawn('python3', ["multichoicequestion_processing.py", req.body.filename.replace(".pdf", ""), req.body.numberOfQuestions]); // Assuming you're passing text query parameter
+
+        process.stdout.on('data', (data) => {
+            console.log(data.toString());
+            quiz = data.toString();
+        });
+
+        process.stderr.on('data', (data) => {
+            console.error(`stderr: ${data}`);
+        });
+
+        process.on('close', (code) => {
+            if (code !== 0) {
+                console.error(`Process exited with code: ${code}`);
+            }
+            else {
+                console.log("response: "+quiz);
+                res.send(quiz);
+            }
         });
     };
 

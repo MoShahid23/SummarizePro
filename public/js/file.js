@@ -5,6 +5,49 @@ function navigateToUrl(url) {
     window.location.href = url;
 }
 
+function createQuiz(event){
+    event.preventDefault();
+    if(event.srcElement["option"].value == ""){
+        let options = 0;
+        for(let option of event.srcElement["option"]){
+            document.querySelector("label[for='"+option.getAttribute("id")+"']").setAttribute("style", "background-color:red");
+            setTimeout(function(){
+                document.querySelector("label[for='"+option.getAttribute("id")+"']").removeAttribute("style");
+            }, 3000+options*50)
+            options++;
+        }
+        return;
+    }
+
+    fetch("/create_quiz", {
+        "method": "POST",
+        "headers": {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json'
+        },
+        "body": JSON.stringify({"filename":event.srcElement["filename"].value, "numberOfQuestions":event.srcElement["option"].value})
+    })
+    .then(response => {
+        if (response.ok) {
+            return response.json(); // Parse response body as JSON
+        }
+        throw new Error("Network response was not ok.");
+    })
+    .then(data => {
+        for(part in data){
+            console.log(data[part]["Q"])
+            console.log("          A: "+data[part]["A"])
+            console.log("          B: "+data[part]["B"])
+            console.log("          C: "+data[part]["C"]);
+            console.log("          D: "+data[part]["D"])
+        }
+    })
+    .catch(error => {
+        // Handle errors
+        console.error("There was a problem with the request:", error);
+    });
+}
+
 document.querySelector("#main-content > div.interact > div.chat-container > div.chat-interact > form").addEventListener("click", function(){
     document.querySelector("#main-content > div.interact > div.chat-container > div.chat-interact > form > input[type=text]:nth-child(1)").focus();
 })

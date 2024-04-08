@@ -5,7 +5,6 @@ from google.api_core.exceptions import InternalServerError, RetryError
 from google.api_core.client_options import ClientOptions
 from google.cloud.documentai_v1 import Document
 from google.cloud import documentai, storage
-import numpy as np
 from typing import Dict, List, Optional
 import pandas as pd
 import re
@@ -233,7 +232,6 @@ pdf_data_sample["embedding"] = pdf_data_sample["chunks"].apply(
     lambda x: embedding_model_with_backoff([x])
 )
 print(pdf_data_sample["embedding"])
-pdf_data_sample["embedding"] = pdf_data_sample.embedding.apply(np.array)
 pdf_data_sample.head(2)
 
 

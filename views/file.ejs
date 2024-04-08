@@ -21,7 +21,22 @@
             <div class="interact">
                 <div class="view-container">
                     <iframe src="/uploads/<%=pdfName%>?filename=<%=pdfName%>" title="Embedded PDF" resizable></iframe>
-                    <div class="quiz-view"></div>
+                    <div class="quiz-view">
+                        <span class="make-quiz-title"><img src="/images/quiz.png" alt="quiz icon"> Multiple Choice<br>Quiz</span>
+                        <form onsubmit="createQuiz(event)" class="generate-quiz" action="/create_quiz" method="post">
+                            <span class="number-of-questions">Number of questions:</span>
+                            <div class="options">
+                                <input name="option" type="radio" id="3" value="3" hidden>
+                                <label class="selectable" for="3">3</label>
+                                <input name="option" type="radio" id="5" value="5" hidden>
+                                <label class="selectable" for="5">5</label>
+                                <input name="option"  type="radio" id="10" value="10" hidden>
+                                <label class="selectable" for="10">10</label>
+                            </div>
+                            <input hidden name="filename" type="text" value="<%=pdfName%>">
+                            <button class="creat-quiz">Create Quiz</button>
+                        </form>
+                    </div>
                 </div>
                 <div class="chat-container">
                     <div class="messages">

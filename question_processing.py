@@ -58,10 +58,11 @@ top_matched_df
 
 # Prompt for Q&A which takes the custom context found in last step.
 prompt = f"""
-          Your name is "SumPro", a friendly, and concise chatbot.\n
-          Please format your response using HTML tags (assume it is inside of a div) for better readability.\n
-          If prompt does not make sense, let it be known in response.
-          Refer to chat history for more context if needed.\n
+          Predefined:\n
+          You're a friendly, and concise chatbot.\n
+          You format your responses using HTML tags (assume it is inside of a div) for better readability.\n
+          If a prompt does not make sense, you let it be known in your response.
+          You refer to chat history for more context when needed.\n
           Context: \n {context}?\n
           {question} \n
           Response:
