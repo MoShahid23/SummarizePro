@@ -4,6 +4,7 @@ const { time, error } = require('console');
 const multer = require('multer'); // Import multer
 const fs = require('fs');
 const path = require('path');
+const e = require('express');
 
 module.exports = function(app, renderData) {
 
@@ -66,7 +67,7 @@ module.exports = function(app, renderData) {
     app.post('/upload', isAuthenticated, upload.single('file'), (req, res) => {
         invokePythonDocumentProcessor(req, res);
         // SQL query to insert user details into the users table
-        let query = 'INSERT INTO documents (email, file_name, file_path) VALUES (?, ?, ?)';
+        let query = 'INSERT INTO documents (email, file_name, file_path, messageHistory) VALUES (?, ?, ?, "")';
 
         // Execute the SQL query
         global.db.query(query, [req.session.userEmail, req.file.filename, req.file.filename.split("&&d&&")[2]], (error, results, fields) => {
@@ -163,7 +164,7 @@ module.exports = function(app, renderData) {
                 files[file.file_name.split("&&d&&")[3].replace(".pdf", "")] = fileExists("./embeddings/"+file.file_name.replace(".pdf", ".pkl"))
             }
             // Render the home template with the current directory's content
-            res.render(req.app.get('baseUrl') + 'home', { "fs": currentDirectory, "files":files, "urlPath":urlPath});
+            res.render(req.app.get('baseUrl') + 'home', { "fs": currentDirectory, "files":files, "urlPath":urlPath, "userEmail":req.session.userEmail});
         });
     });
     app.get('/home', isAuthenticated, (req, res) => {
@@ -274,12 +275,107 @@ module.exports = function(app, renderData) {
             db.query(query, [foundPDF], (error, results) => {
                 if (error) {
                     res.send("Please try again later...");
-                } else {
-                    res.render(req.app.get('baseUrl') + 'file', { "fs": currentDirectory, "urlPath":urlPath, "pdfName":foundPDF, "summary":results[0].summary});
+                }
+                else {
+                    let summary = results[0].summary;
+                    let markedQuizzes;
+                    let query = `
+                        SELECT q.*
+                        FROM quizzes q
+                        JOIN documents d ON q.id = d.id
+                        WHERE q.marked = 1
+                        AND d.file_name = ?
+                    `;
+                    db.query(query, [foundPDF], (error, results) => {
+                        if (error) {
+                            console.error('Error getting quiz status from quizzes table', error);
+                            return res.status(500).send('Internal Server Error');
+                        }
+                        markedQuizzes = results;
+
+                        const query = `
+                            SELECT messageHistory FROM documents
+                            WHERE file_name = ?
+                        `;
+                        db.query(query, [foundPDF], (error, results) => {
+                            if (error) {
+                                console.error(`Error updating history in database: ${error}`);
+                            }
+                            else {
+                                messageHistory = results[0].messageHistory;
+                                let query = `
+                                    SELECT q.*
+                                    FROM quizzes q
+                                    JOIN documents d ON q.id = d.id
+                                    WHERE q.marked = 0
+                                    AND d.file_name = ?
+                                `;
+                                db.query(query, [foundPDF], (error, results) => {
+                                    if (error) {
+                                        console.error('Error getting quiz status from quizzes table', error);
+                                        return res.status(500).send('Internal Server Error');
+                                    }
+                                    console.log(results[0])
+                                    if(results.length == 0){
+                                        res.render(req.app.get('baseUrl') + 'file', { "fs": currentDirectory, "urlPath":urlPath, "pdfName":foundPDF, "summary":summary, quizHistory:markedQuizzes, messageHistory:messageHistory, quiz:""});
+                                    }
+                                    else{
+                                        res.render(req.app.get('baseUrl') + 'file', { "fs": currentDirectory, "urlPath":urlPath, "pdfName":foundPDF, "summary":summary, quizHistory:markedQuizzes, messageHistory:messageHistory, quiz:{quiz:results[0].quiz, began:results[0].began}});
+                                    }
+                                });
+                            }
+                        });
+                    });
                 }
             })
         });
     });
+
+    app.post('/delete_file', isAuthenticated, (req, res) => {
+        // First, delete quizzes associated with the document
+        let deleteQuizzesQuery = `
+            DELETE FROM quizzes WHERE id IN (
+                SELECT id FROM documents WHERE file_name = ?
+            );
+        `;
+        db.query(deleteQuizzesQuery, [req.body.filename], (quizzesError, quizzesResults) => {
+            if (quizzesError) {
+                console.error('Error deleting quizzes', quizzesError);
+                return res.status(500).send('Internal Server Error');
+            }
+
+            // After deleting quizzes, delete the document itself
+            let deleteDocumentQuery = `
+                DELETE FROM documents WHERE file_name = ?;
+            `;
+            db.query(deleteDocumentQuery, [req.body.filename], (documentError, documentResults) => {
+                if (documentError) {
+                    console.error('Error deleting document', documentError);
+                    return res.status(500).send('Internal Server Error');
+                }
+
+                let filePath = path.join(__dirname, "../uploads/"+req.body.filename);
+                fs.unlink(filePath, (unlinkError) => {
+                    if (unlinkError) {
+                        console.error('Error deleting file', unlinkError);
+                        return res.status(500).send('Internal Server Error');
+                    }
+
+                    filePath = path.join(__dirname, "../embeddings/"+req.body.filename.replace(".pdf", ".pkl"));
+                    fs.unlink(filePath, (unlinkError) => {
+                        if (unlinkError) {
+                            console.error('Error deleting file', unlinkError);
+                            return res.status(500).send('Internal Server Error');
+                        }
+
+                        // Redirect the window to the home page
+                        res.send('deleted successfully');
+                    });
+                });
+            });
+        });
+    });
+
 
     // Route to handle login form submission
     app.post('/message', (req, res) => {
@@ -290,25 +386,108 @@ module.exports = function(app, renderData) {
     });
 
     app.post('/create_quiz', isAuthenticated, (req, res) => {
-        let query = `
+        invokePythonMultiChoiceQuestionProcessor(req, res);
+    });
+
+    app.post('/start_quiz', isAuthenticated, (req, res) => {
+        // First, select the quiz with the associated document ID and filename
+        let selectQuery = `
             SELECT q.*
             FROM quizzes q
             JOIN documents d ON q.id = d.id
-            WHERE q.marked = FALSE
+            WHERE q.marked = 0
             AND d.file_name = ?
         `;
-        global.db.query(query, [req.body.filename], (error, results) => {
+        db.query(selectQuery, [req.body.filename], (error, results) => {
             if (error) {
                 console.error('Error getting quiz status from quizzes table', error);
                 return res.status(500).send('Internal Server Error');
             }
-            console.log(results);
-            if(results.length == 0){
-                invokePythonMultiChoiceQuestionProcessor(req, res);
-            }
 
+            // Check if a quiz is found for the given filename
+            if (results.length > 0) {
+                // Get the ID of the document associated with the filename
+                const documentId = results[0].id;
+
+                // Now update the began column for the matching quiz
+                let updateQuery = `
+                    UPDATE quizzes
+                    SET began = ${req.body.time}
+                    WHERE id = ?
+                    AND marked = 0
+                `;
+                db.query(updateQuery, [documentId], (error, updateResult) => {
+                    if (error) {
+                        console.error('Error updating quiz status in quizzes table', error);
+                        return res.status(500).send('Internal Server Error');
+                    }
+                    // Send response indicating success
+                    return res.send('Quiz started successfully');
+                });
+            } else {
+                // No quiz found for the given filename
+                return res.status(404).send('Quiz not found for the given filename');
+            }
         });
     });
+
+    app.post('/mark_quiz', isAuthenticated, (req, res) => {
+        // First, select the quiz with the associated document ID and filename
+        let selectQuery = `
+            SELECT q.*
+            FROM quizzes q
+            JOIN documents d ON q.id = d.id
+            WHERE q.marked = 0
+            AND d.file_name = ?
+        `;
+        db.query(selectQuery, [req.body.filename], (error, results) => {
+            if (error) {
+                console.error('Error getting quiz status from quizzes table', error);
+                return res.status(500).send('Internal Server Error');
+            }
+
+            // Check if a quiz is found for the given filename
+            if (results.length > 0) {
+                // Get the ID of the document associated with the filename
+                const documentId = results[0].id;
+
+                // Now update the began column for the matching quiz
+                let updateQuery = `
+                    UPDATE quizzes
+                    SET marked = 1,
+                    submittedQuiz = ?
+                    WHERE id = ?
+                    && marked = 0
+                `;
+                db.query(updateQuery, [JSON.stringify(req.body.quiz), documentId], (error, updateResult) => {
+                    if (error) {
+                        console.error('Error updating quiz status in quizzes table', error);
+                        return res.status(500).send('Internal Server Error');
+                    }
+                    // Send response indicating success
+                    return res.send('Quiz marked successfully');
+                });
+            } else {
+                // No quiz found for the given filename
+                return res.status(404).send('Quiz not found for the given filename');
+            }
+        });
+    });
+
+    app.post('/reset_history', isAuthenticated, (req, res) => {
+        // First, select the quiz with the associated document ID and filename
+        let query = `
+            UPDATE documents SET messageHistory = '' WHERE file_name = ?
+        `;
+        db.query(query, [req.body.filename], (error, results) => {
+            if (error) {
+                console.error('Error updating chat history', error);
+                return res.status(500).send('Internal Server Error');
+            }
+            res.send("update chat history successfully")
+        });
+    });
+
 
     // Route for the login page
     app.get('/login', (req, res) => {
@@ -480,14 +659,15 @@ module.exports = function(app, renderData) {
 
     // Callback function that handles requests to the '/python' endpoint
     function invokePythonMultiChoiceQuestionProcessor(req, res) {
-        var quiz;
+        var quiz = ''; // Initialize quiz variable here
+
         console.log("Spawning Python process");
-        console.log(req.body.numberOfQuestions)
+        console.log(req.body.numberOfQuestions);
         var process = spawn('python3', ["multichoicequestion_processing.py", req.body.filename.replace(".pdf", ""), req.body.numberOfQuestions]); // Assuming you're passing text query parameter
 
         process.stdout.on('data', (data) => {
             console.log(data.toString());
-            quiz = data.toString();
+            quiz += data.toString().replaceAll("``` JSON", "").replaceAll("```", ""); // Append data to the quiz variable
         });
 
         process.stderr.on('data', (data) => {
@@ -497,13 +677,45 @@ module.exports = function(app, renderData) {
         process.on('close', (code) => {
             if (code !== 0) {
                 console.error(`Process exited with code: ${code}`);
+                return res.status(500).send('Internal Server Error');
             }
-            else {
-                console.log("response: "+quiz);
-                res.send(quiz);
+
+            try {
+                for (let part in JSON.parse(quiz)) {
+                    // Mock process the quiz data
+                }
+            } catch (error) {
+                console.error('Error parsing quiz data:', error);
+                // Retry the function
+                return invokePythonMultiChoiceQuestionProcessor(req, res);
             }
+
+
+            let query = 'SELECT id FROM documents WHERE file_name = ?';
+
+            db.query(query, [req.body.filename], (error, results) => {
+                if (error) {
+                    console.error('Error getting id from documents for quiz', error);
+                    return res.status(500).send('Internal Server Error');
+                }
+
+                if (results.length === 0) {
+                    return res.status(404).send('Document not found');
+                }
+
+                const documentId = results[0].id; // Access the id from the first row
+
+                query = "INSERT INTO quizzes (id, quiz) VALUES (?, ?)";
+                db.query(query, [documentId, quiz], (error, results) => {
+                    if (error) {
+                        console.error('Error adding quiz to db', error);
+                        return res.status(500).send('Internal Server Error');
+                    }
+                    res.send({quiz: quiz, began: null});
+                });
+            });
         });
-    };
+    }
 
     // Callback function that handles requests to the '/python' endpoint
     function invokePythonSummaryProcessor(req, res) {
@@ -565,7 +777,50 @@ module.exports = function(app, renderData) {
                 res.send({message:"failed to generate a response at this moment"});
             }
             else{
-                res.send({message:response});
+                const filename = req.body.filename;
+                const userEmail = req.session.userEmail;
+
+                const query = `
+                    SELECT messageHistory
+                    FROM documents
+                    WHERE file_name = ? AND email = ?
+                `;
+
+                // Fetch the existing messageHistory from the database
+                db.query(query, [filename, userEmail], (error, results) => {
+                    if (error) {
+                        console.error(`Error fetching existing messageHistory: ${error}`);
+                        return res.status(500).send({ error: 'Internal Server Error' });
+                    }
+
+                    let existingHistory = results[0] && results[0].messageHistory ? JSON.parse(results[0].messageHistory) : [];
+
+                    // Construct the new message object
+                    const newMessage = { Q: req.body.question, A: response };
+
+                    // Append the new message to the existing message history
+                    existingHistory.push(newMessage);
+
+                    // Convert the updated message history back to JSON string
+                    const updatedMessageHistory = JSON.stringify(existingHistory);
+
+                    // Execute the update query
+                    const updateQuery = `
+                        UPDATE documents
+                        SET messageHistory = ?
+                        WHERE file_name = ? AND email = ?
+                    `;
+                    db.query(updateQuery, [updatedMessageHistory, filename, userEmail], (error, results) => {
+                        if (error) {
+                            console.error(`Error updating history in database: ${error}`);
+                            return res.status(500).send({ error: 'Internal Server Error' });
+                        }
+
+                        console.log("History updated successfully in the database.");
+                        res.send({ message: response });
+                    });
+                });
+
             }
         });
     };

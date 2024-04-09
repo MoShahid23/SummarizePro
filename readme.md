@@ -35,10 +35,9 @@ With this path variable set, you may run the following in your terminal:
 
 - gcloud services enable documentai.googleapis.com storage.googleapis.com aiplatform.googleapis.com
 
-Now, most of that should have already been setup, but it running it is best practice ime.
 Next, install the following packages for Python3.10. You may have to change pip3 to 'pip' or something else depending on your configuration.
 
-- pip3 install install google-cloud-documentai google-cloud-storage tenacity pandas vertexai
+- pip3 install google-cloud-documentai google-cloud-storage tenacity pandas vertexai
 
 At this stage, if everything went well, you should be able to run all of the python scripts in the project.
 Now, similar to the situation with pip3, if you do not run python3.10 with 'python3', you must change a few lines in main.js in the root directory of the project. In this file there will be a number of functions that are named starting with 'InvokePython....'. Near the top of these functions, there is a line that looks like this

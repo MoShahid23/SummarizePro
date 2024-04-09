@@ -45,10 +45,9 @@ global.db = dbConnection;
 
 //quick check to see if session should be able to access file
 function isAuthorized(req, res, next) {
-    const requestedFile = req.originalUrl; // Extract filename from request parameters
-    const userEmail = req.session.userEmail; // Assuming user email is stored in req.user after authentication
+    const requestedFile = req.originalUrl;
+    const userEmail = req.session.userEmail;
     // Check if the requested file belongs to the authenticated user
-    // You'll need to implement your own logic to determine ownership
     if (requestedFile.includes(userEmail)) {
         return next(); // User is authorized, continue
     }
@@ -69,6 +68,10 @@ app.engine('html', ejs.renderFile);
 
 var data = {appName: "SummarizePro"};
 require("./routes/main")(app, data);
+
+app.get('/favicon.ico', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'favicon.ico'));
+});
 
 // Starting the server
 app.listen(port, () => console.log(`SummarizePro is live on port ${port}!`))

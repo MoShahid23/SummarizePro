@@ -33,9 +33,8 @@
                 </ul>
             </nav>
             <div id="profile" class="profile-bottom">
-                <button class="dropdown-btn"><img src="/images/email.png" alt="email icon">blah@gmail.com</button>
+                <button class="dropdown-btn"><img src="/images/email.png" alt="email icon"><%=userEmail%></button>
                 <div class="dropdown-menu">
-                    <a onclick="location.href='/logout'"><img src="/images/key.png" alt="key icon"><span>&nbsp;Change password</span></a>
                     <a onclick="location.href='/logout'"><img src="/images/logout.png" alt="logout icon"><span>&nbsp;Logout</span></a>
                 </div>
             </div>
@@ -47,7 +46,7 @@
                 <button onclick="createFolder()">New folder</button>
                 <button onclick="uploadFile()">+ Create file</button>
                 <button>Delete selected</button>
-                <div><input type="search" placeholder="Search here"></div>
+                <div><input type="search" placeholder="Search current directory"></div>
             </div>
             <!-- Folder info area -->
             <div class="traversal-detail">
@@ -70,6 +69,8 @@
 
                 <% for(let file in files){ %>
                     <div class="file" onclick="navigateToUrl((((window.location.pathname.slice(-1) === '/') ? window.location.pathname.slice(0, -1) : window.location.pathname) + '/' + '<%= file %>.file'))">
+                        <label for="<%= file %>">*</label>
+                        <input class="checkbox" name="<%= file %>" id="<%= file %>" type="checkbox" hidden>
                         <% if(files[file]){ %>
                             <img src="/images/file_icon.png" alt="file icon">
                         <% }else { %>
@@ -77,6 +78,7 @@
                         <% } %>
                         <span><%= file %></span>
                     </div>
+
 
                 <% } if(Object.keys(files).length == 0 && Object.keys(fs).length == 0){ %>
                     <span>Nothing in here yet... <br>click here for help getting started</span>

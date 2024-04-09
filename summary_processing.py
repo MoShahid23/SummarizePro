@@ -42,6 +42,6 @@ def generate_summary(prompt: str, summary: str) -> str:
 
 summary = get_summary_from_document(pdf_data_sample, summary_length=3)
 
-prompt = f"Generate a short and concise summary of the PDF.\nPlease format your response using HTML tags (assume it is inside of a div, max <h3>) for better readability.\n Context:\n{summary}\n"
+prompt = f"Generate a short and concise summary of the whole PDF. e.g timeline of events, etc.\nPlease format your response using HTML tags (assume it is inside of a div, max <h3>) for better readability.\n Context:\n{summary}\n"
 response = generate_summary(prompt, summary)
 print(response.replace("```html", "").replace("```", ""))

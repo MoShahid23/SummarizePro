@@ -14,8 +14,6 @@ CREATE TABLE IF NOT EXISTS users (
     salt VARCHAR(255),           -- Store salt for password hashing (nullable if using Google login)
     google_id VARCHAR(255),      -- Store Google ID (nullable if using custom login)
     google_email VARCHAR(255),   -- Store Google email (nullable if using custom login)
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     fs TEXT
 );
 
@@ -25,13 +23,15 @@ CREATE TABLE IF NOT EXISTS documents (
     file_name VARCHAR(255) NOT NULL,
     file_path VARCHAR(255) NOT NULL,
     summary TEXT,
+    messageHistory TEXT,
     FOREIGN KEY (email) REFERENCES users(email)
 );
 
 CREATE TABLE IF NOT EXISTS quizzes (
     id INT,
-    created TIMESTAMP,
+    began TEXT DEFAULT NULL,
     quiz TEXT,
-    marked BOOLEAN,
+    submittedQuiz TEXT,
+    marked INT DEFAULT 0,
     FOREIGN KEY (id) REFERENCES documents(id)
 );

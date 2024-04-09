@@ -43,6 +43,6 @@ def generate_quiz(prompt: str, summary: str) -> str:
 
 summary = get_summary_from_document(pdf_data_sample, summary_length=3)
 
-prompt = "Generate a Multiple choice quiz from this PDF ("+number+" questions). format it as json object like: {Q1:Q:'question', A:'answer, B:'answer, C:'answer, D:'answer, CA:correct answer letter}\n Context:\n"+summary+"\n"
+prompt = "Generate a random Multiple choice quiz from this PDF ("+number+" questions). format it as json object like: {Q1:Q:'question', A:'answer, B:'answer, C:'answer, D:'answer, CA:correct answer letter}\n Context:\n"+summary+"\n"
 response = generate_quiz(prompt, summary)
 print(response)

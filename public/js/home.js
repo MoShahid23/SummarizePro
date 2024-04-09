@@ -99,3 +99,21 @@ function checkProcessingStatus() {
         });
     }
 }
+
+document.querySelector(".content-header div input[type=search]").addEventListener("input", function(event) {
+    const inputValue = event.target.value.toLowerCase(); // Convert input value to lowercase for case-insensitive comparison
+
+    const fileExplorerDivs = document.querySelectorAll(".file-explorer div");
+
+    fileExplorerDivs.forEach(div => {
+        const divInnerText = div.innerText.toLowerCase(); // Convert inner text to lowercase
+
+        if (divInnerText.includes(inputValue)) {
+            // If the inner text contains the input value, hide the element
+            div.style.display = "flex";
+        } else {
+            // If the inner text does not contain the input value, show the element
+            div.style.display = "none";
+        }
+    });
+});
